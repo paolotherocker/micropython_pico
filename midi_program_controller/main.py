@@ -3,7 +3,7 @@ from machine import Pin, Timer, PWM
 from enum import Enum
 
 
-def pwm_duty(pct: float) -> float:
+def pwm_duty_pct(pct: float) -> float:
     return 65025 * pct * 0.01
 
 
@@ -27,8 +27,10 @@ class UpdateValue(Enum):
 class State(Enum):
     IDLE = 0
     PAGE_CHANGE = 1
-    PROGRAM_CHANGE = 2
-    CONFIG = 3
+    PAGE_CHANGE_WAIT = 2
+    SEND_PC_MESSAGE = 3
+    PROGRAM_CHANGE_DISP = 4
+    CONFIG = 5
 
 
 class MidiProgramManager:
@@ -64,8 +66,7 @@ class MidiProgramController:
         self.state = State.IDLE
 
         self.send_timer = Timer()
-        self.pc_timer = Timer()
-        self.update_ui_timer = Timer()
+        self.update_timer = Timer()
 
         for led in patch_led:
             led.freq(1000)
@@ -78,59 +79,71 @@ class MidiProgramController:
             trigger=Pin.IRQ_RISING, handler=lambda: self.page_callback(UpdateValue.DOWN)
         )
         btn_cfg.irq(trigger=Pin.IRQ_RISING, handler=setattr(self, "state", State.CONFIG))
-        btn_cfg.irq(trigger=Pin.IRQ_FALLING, handler=setattr(self, "state", State.IDLE))
+        btn_cfg.irq(trigger=Pin.IRQ_FALLING, handler=setattr(self, "state", State.SEND_PC_MESSAGE))
 
-        self.update_ui_timer.init(mode=Timer.PERIODIC, freq=60, callback=self.update_ui_callback)
+        # Main update loop
+        self.update_timer.init(mode=Timer.PERIODIC, freq=120, callback=self.update_callback)
 
     def patch_callback(self, value: int):
         # Don't do anything if we are in configuration mode
         self.pm.set_patch(value)
-        self.send_midi_pc()
+        self.state = State.SEND_PC_MESSAGE
 
     def page_callback(self, value: UpdateValue):
         if self.state is State.CONFIG:
             self.pm.update_channel(value)
         else:
+            self.state = State.PAGE_CHANGE
             self.pm.update_page(value)
-        # Send the MIDI PC message after a short delay to allow the user to find the page
-        self.send_timer.init(mode=Timer.PERIODIC, period=500, callback=self.send_midi_pc)
 
     def send_midi_pc(self):
-        if self.state is State.CONFIG:
-            return
+        pass
 
-        self.send_timer.deinit()
-
-        self.state = State.PROGRAM_CHANGE
-        # Reset the state to IDLE after a short period
-        self.pc_timer.init(
-            mode=Timer.ONE_SHOT, period=100, callback=setattr(self, "state", State.IDLE)
-        )
-
-    def update_ui_callback(self):
-        if self.state is not State.PROGRAM_CHANGE:
-            self.pc_timer.deinit()
-
+    def update_callback(self):
         # Update LED states
         for led in patch_led:
             led.duty_u16(0)
 
         if self.state is State.PAGE_CHANGE:
-            patch_led[self.pm.patch].duty_u16(pwm_duty(50))
+            patch_led[self.pm.patch].duty_u16(pwm_duty_pct(50))
         else:
-            patch_led[self.pm.patch].duty_u16(pwm_duty(100))
+            patch_led[self.pm.patch].duty_u16(pwm_duty_pct(100))
 
         # Refresh display
         match self.state:
             case State.IDLE:
                 disp.number(self.pm.page)
-                pass
+
             case State.PAGE_CHANGE:
                 disp.number(self.pm.page)
-                pass
-            case State.PROGRAM_CHANGE:
+
+                # Go into wait mode and trigger a send state after a short period
+                self.state = State.PAGE_CHANGE_WAIT
+                self.send_timer.init(
+                    mode=Timer.ONE_SHOT,
+                    period=500,
+                    callback=lambda: setattr(self, "state", State.SEND_PC_MESSAGE),
+                )
+
+            case State.PAGE_CHANGE_WAIT:
+                disp.number(self.pm.page)
+
+            case State.SEND_PC_MESSAGE:
+                self.send_midi_pc()
                 disp.show(f"P{self.pm.midi_program:3}")
-                pass
+
+                # Go into program display mode and trigger the idle state after a short period
+                self.state = State.PROGRAM_CHANGE_DISP
+                self.send_timer.init(
+                    mode=Timer.ONE_SHOT,
+                    period=250,
+                    callback=lambda: setattr(self, "state", State.IDLE),
+                )
+
+            case State.PROGRAM_CHANGE_DISP:
+                self.send_timer.deinit()
+                disp.show(f"P{self.pm.midi_program:3}")
+
             case State.CONFIG:
+                self.send_timer.deinit()
                 disp.show(f"C{self.pm.midi_channel:3}")
-                pass
