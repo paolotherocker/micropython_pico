@@ -1,51 +1,34 @@
-import picozero
 import tm1637
-from machine import Pin, Timer
+from machine import Pin, Timer, PWM
 from enum import Enum
 
 
-class DisplayState(Enum):
-    PAGE = 0
-    MIDI_PROGRAM = 1
-    MIDI_CHANNEL = 2
+def pwm_duty(pct: float) -> float:
+    return 65025 * pct * 0.01
 
 
-class HardwareManager:
-    def __init__(self) -> None:
-        # Buttons
-        self.b_0 = picozero.Button(14)
-        self.b_1 = picozero.Button(15)
-        self.b_2 = picozero.Button(16)
-        self.b_page_down = picozero.Button(17)
-        self.b_page_up = picozero.Button(19)
-        self.b_cfg = picozero.Button(20)
-        # LEDs
-        self.led_0 = picozero.LED(24)
-        self.led_1 = picozero.LED(25)
-        self.led_2 = picozero.LED(26)
-        # Display
-        self.tm = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
+patch_btn = [
+    Pin(14, Pin.IN, Pin.PULL_DOWN),
+    Pin(15, Pin.IN, Pin.PULL_DOWN),
+    Pin(16, Pin.IN, Pin.PULL_DOWN),
+]
+btn_page_up = Pin(17, Pin.IN, Pin.PULL_DOWN)
+btn_page_down = Pin(19, Pin.IN, Pin.PULL_DOWN)
+btn_cfg = Pin(20, Pin.IN, Pin.PULL_DOWN)
+patch_led = [PWM(Pin(24, Pin.OUT)), PWM(Pin(25, Pin.OUT)), PWM(Pin(26, Pin.OUT))]
+disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
 
-    def set_patch_led(self, id: int = -1):
-        self.led_0.off()
-        self.led_1.off()
-        self.led_2.off()
-        match id:
-            case 0:
-                self.led_0.on()
-            case 1:
-                self.led_1.on()
-            case 2:
-                self.led_2.on()
 
-    def display_page(self, page: int):
-        self.tm.number(page)
+class UpdateValue(Enum):
+    DOWN = -1
+    UP = 1
 
-    def display_program(self, program: int):
-        self.tm.show(f"P{program:3}")
 
-    def display_channel(self, channel: int):
-        self.tm.show(f"C{channel:3}")
+class State(Enum):
+    IDLE = 0
+    PAGE_CHANGE = 1
+    PROGRAM_CHANGE = 2
+    CONFIG = 3
 
 
 class MidiProgramManager:
@@ -57,89 +40,97 @@ class MidiProgramManager:
 
     def set_patch(self, patch_number: int):
         self.patch = patch_number
-        self.update_program()
+        self._update_program()
 
     def set_page(self, page_number: int):
         self.page = page_number
-        self.update_program()
+        self._update_program()
 
-    def update_page(self, delta: int):
-        self.page += delta
-        self.update_program()
+    def update_page(self, value: UpdateValue):
+        self.page += value.value
+        self._update_program()
 
-    def update_channel(self, delta: int):
-        self.midi_channel += delta
+    def update_channel(self, value: UpdateValue):
+        self.midi_channel += value.value
 
-    def update_program(self):
+    def _update_program(self):
         self.midi_program = self.page * 3 + self.patch
 
 
 class MidiProgramController:
-    def __init__(self):
-        self.hw = HardwareManager()
+    def __init__(self) -> None:
         self.pm = MidiProgramManager()
 
+        self.state = State.IDLE
+
         self.send_timer = Timer()
-        # The display refreshes at a constant
-        self.display_refresh_timer = Timer()
-        self.display_refresh_timer.init(
-            mode=Timer.PERIODIC, freq=60, callback=self.display_refresh_timer
+        self.pc_timer = Timer()
+        self.update_ui_timer = Timer()
+
+        for led in patch_led:
+            led.freq(1000)
+
+        for idx, btn in enumerate(patch_btn):
+            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda: self.patch_callback(idx))
+
+        btn_page_up.irq(trigger=Pin.IRQ_RISING, handler=lambda: self.page_callback(UpdateValue.UP))
+        btn_page_down.irq(
+            trigger=Pin.IRQ_RISING, handler=lambda: self.page_callback(UpdateValue.DOWN)
         )
+        btn_cfg.irq(trigger=Pin.IRQ_RISING, handler=setattr(self, "state", State.CONFIG))
+        btn_cfg.irq(trigger=Pin.IRQ_FALLING, handler=setattr(self, "state", State.IDLE))
 
-        self.display_state = DisplayState.PAGE
-        self.midi_program = 0
-        self.page = 0
-        self.patch = 0
+        self.update_ui_timer.init(mode=Timer.PERIODIC, freq=60, callback=self.update_ui_callback)
 
-        self.hw.b_0.when_activated = lambda: self.patch_update(0)
-        self.hw.b_1.when_activated = lambda: self.patch_update(1)
-        self.hw.b_2.when_activated = lambda: self.patch_update(2)
-        self.hw.b_page_down.when_activated = lambda: self.page_update(-1)
-        self.hw.b_page_up.when_activated = lambda: self.page_update(1)
-        self.hw.b_cfg.when_activated = self.cfg_on
-        self.hw.b_cfg.when_deactivated = self.cfg_off
+    def patch_callback(self, value: int):
+        # Don't do anything if we are in configuration mode
+        self.pm.set_patch(value)
+        self.send_midi_pc()
 
-    def send_midi_program_change(self):
-        # Show the midi program being sent for a brief period
-        self.display_state = DisplayState.MIDI_PROGRAM
-        self.send_timer.deinit()
-        self.send_timer.init(mode=Timer.ONE_SHOT, period=100, callback=self.cfg_off)
-
-        # Send the midi program change request
-
-    def refresh_display(self):
-        match self.display_state:
-            case DisplayState.PAGE:
-                self.hw.display_page(self.pm.page)
-            case DisplayState.MIDI_PROGRAM:
-                self.hw.display_program(self.pm.midi_program)
-            case DisplayState.MIDI_CHANNEL:
-                self.hw.display_channel(self.pm.midi_channel)
-
-    def patch_update(self, patch_number: int):
-        if self.hw.b_cfg.is_active:
-            return
-        self.pm.set_patch(patch_number)
-        self.hw.set_patch_led(patch_number)
-        self.send_midi_program_change()
-
-    def page_update(self, delta: int):
-        if self.hw.b_cfg.is_active:
-            self.pm.update_channel(delta)
+    def page_callback(self, value: UpdateValue):
+        if self.state is State.CONFIG:
+            self.pm.update_channel(value)
         else:
-            self.display_state = DisplayState.PAGE
-            self.pm.update_page(delta)
-        # Delay the prgram change message a bit, in case you are searching through the pages
-        self.send_timer.init(
-            period=500, mode=Timer.ONE_SHOT, callback=self.send_midi_program_change
+            self.pm.update_page(value)
+        # Send the MIDI PC message after a short delay to allow the user to find the page
+        self.send_timer.init(mode=Timer.PERIODIC, period=500, callback=self.send_midi_pc)
+
+    def send_midi_pc(self):
+        if self.state is State.CONFIG:
+            return
+
+        self.send_timer.deinit()
+
+        self.state = State.PROGRAM_CHANGE
+        # Reset the state to IDLE after a short period
+        self.pc_timer.init(
+            mode=Timer.ONE_SHOT, period=100, callback=setattr(self, "state", State.IDLE)
         )
 
-    def cfg_on(self):
-        self.display_state = DisplayState.MIDI_CHANNEL
+    def update_ui_callback(self):
+        if self.state is not State.PROGRAM_CHANGE:
+            self.pc_timer.deinit()
 
-    def cfg_off(self):
-        self.display_state = DisplayState.PAGE
+        # Update LED states
+        for led in patch_led:
+            led.duty_u16(0)
 
+        if self.state is State.PAGE_CHANGE:
+            patch_led[self.pm.patch].duty_u16(pwm_duty(50))
+        else:
+            patch_led[self.pm.patch].duty_u16(pwm_duty(100))
 
-while True:
-    pass
+        # Refresh display
+        match self.state:
+            case State.IDLE:
+                disp.number(self.pm.page)
+                pass
+            case State.PAGE_CHANGE:
+                disp.number(self.pm.page)
+                pass
+            case State.PROGRAM_CHANGE:
+                disp.show(f"P{self.pm.midi_program:3}")
+                pass
+            case State.CONFIG:
+                disp.show(f"C{self.pm.midi_channel:3}")
+                pass
