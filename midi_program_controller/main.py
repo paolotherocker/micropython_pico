@@ -12,17 +12,19 @@ btn_page_up = Pin(17, Pin.IN, Pin.PULL_DOWN)
 btn_page_down = Pin(19, Pin.IN, Pin.PULL_DOWN)
 btn_cfg = Pin(20, Pin.IN, Pin.PULL_DOWN)
 patch_led = [PWM(Pin(24, Pin.OUT)), PWM(Pin(25, Pin.OUT)), PWM(Pin(26, Pin.OUT))]
+send_led = Pin(27, Pin.OUT)
 disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
 
 n_pages = math.ceil(127 / len(patch_btn))
 
 
-def pwm_duty_pct(pct: float) -> float:
-    return 65025 * pct * 0.01
-
-
 def clamp(value: int | float, lower_bound: int | float, upper_bound: int | float) -> int | float:
     return max(min(value, upper_bound), lower_bound)
+
+
+def pwm_duty(pct: float) -> float:
+    """Calculate PWM duty cycle from a percentage value"""
+    return 65025 * clamp(pct, 0, 100) * 0.01
 
 
 class State(Enum):
@@ -75,12 +77,18 @@ class MidiProgramController:
             led.freq(1000)
 
         for idx, btn in enumerate(patch_btn):
-            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda: self.patch_callback(idx))
+            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.patch_callback(idx))
+            btn.irq(
+                trigger=Pin.IRQ_FALLING,
+                handler=self.patch_release_callback,
+            )
 
-        btn_page_up.irq(trigger=Pin.IRQ_RISING, handler=lambda: self.page_update_callback(1))
-        btn_page_down.irq(trigger=Pin.IRQ_RISING, handler=lambda: self.page_update_callback(-1))
-        btn_cfg.irq(trigger=Pin.IRQ_RISING, handler=setattr(self, "state", State.CONFIG))
-        btn_cfg.irq(trigger=Pin.IRQ_FALLING, handler=setattr(self, "state", State.SEND_PC_MESSAGE))
+        btn_page_up.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.page_update_callback(1))
+        btn_page_down.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.page_update_callback(-1))
+        btn_cfg.irq(trigger=Pin.IRQ_RISING, handler=lambda p: setattr(self, "state", State.CONFIG))
+        btn_cfg.irq(
+            trigger=Pin.IRQ_FALLING, handler=lambda p: setattr(self, "state", State.SEND_PC_MESSAGE)
+        )
 
         # Main update loop
         self.update_timer.init(mode=Timer.PERIODIC, freq=120, callback=self.update_callback)
@@ -89,6 +97,10 @@ class MidiProgramController:
         # Don't do anything if we are in configuration mode
         self.pm.set_patch(value)
         self.state = State.SEND_PC_MESSAGE
+
+    def patch_release_callback(self, pin: Pin):
+        if self.state is State.PROGRAM_CHANGE_DISP:
+            self.state = State.IDLE
 
     def page_update_callback(self, delta: int):
         if self.state is State.CONFIG:
@@ -100,15 +112,8 @@ class MidiProgramController:
     def send_midi_pc(self):
         pass
 
-    def update_callback(self):
-        # Update LED states
-        for led in patch_led:
-            led.duty_u16(0)
-
-        if self.state is State.PAGE_CHANGE:
-            patch_led[self.pm.patch].duty_u16(pwm_duty_pct(50))
-        else:
-            patch_led[self.pm.patch].duty_u16(pwm_duty_pct(100))
+    def update_callback(self, timer: Timer):
+        led_brightness = 100.0
 
         # Refresh display
         match self.state:
@@ -123,29 +128,37 @@ class MidiProgramController:
                 self.send_timer.init(
                     mode=Timer.ONE_SHOT,
                     period=500,
-                    callback=lambda: setattr(self, "state", State.SEND_PC_MESSAGE),
+                    callback=lambda t: setattr(self, "state", State.SEND_PC_MESSAGE),
                 )
 
             case State.PAGE_CHANGE_WAIT:
+                led_brightness = 25.0
                 disp.number(self.pm.page)
 
             case State.SEND_PC_MESSAGE:
+                self.send_timer.deinit()
                 self.send_midi_pc()
-                disp.show(f"P{self.pm.midi_program:3}")
+
+                # Blink the send LED once
+                send_led.on()
+                self.send_timer.init(
+                    mode=Timer.ONE_SHOT, period=250, callback=lambda t: send_led.off()
+                )
 
                 # Go into program display mode and trigger the idle state after a short period
                 self.state = State.PROGRAM_CHANGE_DISP
-                self.send_timer.init(
-                    mode=Timer.ONE_SHOT,
-                    period=250,
-                    callback=lambda: setattr(self, "state", State.IDLE),
-                )
 
             case State.PROGRAM_CHANGE_DISP:
-                self.send_timer.deinit()
                 disp.show(f"P{self.pm.midi_program:3}")
 
             case State.CONFIG:
                 self.send_timer.deinit()
+
+                led_brightness = 25.0
                 # Add one to the Midi channel being displayed, as this seems to be quite common
                 disp.show(f"C{self.pm.midi_channel + 1:3}")
+
+        # Update LED states
+        for led in patch_led:
+            led.duty_u16(0)
+        patch_led[self.pm.patch].duty_u16(pwm_duty(led_brightness))
