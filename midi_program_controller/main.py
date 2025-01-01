@@ -49,9 +49,9 @@ class Midi:
         self.uart.write(bytearray([0xC0 | self.channel, program]))
 
 
-class MidiProgramChange:
+class MidiProgramManager:
     def __init__(self) -> None:
-        self.midi_program = int(0)
+        self.program = int(0)
         self.page = int(0)
         self.patch = int(0)
 
@@ -67,13 +67,13 @@ class MidiProgramChange:
         self._update_program()
 
     def _update_program(self):
-        self.midi_program = max(min(self.page * 3 + self.patch, 127), 0)
+        self.program = max(min(self.page * 3 + self.patch, 127), 0)
 
 
 class MidiProgramController:
     def __init__(self) -> None:
         self.midi = Midi(k_midi_uart_id)
-        self.pc = MidiProgramChange()
+        self.pm = MidiProgramManager()
 
         self.state = State.IDLE
 
@@ -83,6 +83,11 @@ class MidiProgramController:
         for led in patch_led:
             led.freq(1000)
 
+    def init(self, frequency: int):
+        """Link callbacks and start main update timer
+
+        :param int frequency: frequency at which the state machine and display are updated
+        """
         for idx, btn in enumerate(patch_btn):
             btn.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.patch_press_callback(idx))
             btn.irq(
@@ -98,10 +103,10 @@ class MidiProgramController:
         )
 
         # Main update loop
-        self.update_timer.init(mode=Timer.PERIODIC, freq=120, callback=self.update_callback)
+        self.update_timer.init(mode=Timer.PERIODIC, freq=frequency, callback=self.update_callback)
 
     def patch_press_callback(self, value: int):
-        self.pc.set_patch(value)
+        self.pm.set_patch(value)
         self.state = State.SEND_PC_MESSAGE
 
     def patch_release_callback(self, pin: Pin):
@@ -112,7 +117,7 @@ class MidiProgramController:
         if self.state is State.CONFIG:
             self.midi.set_channel(self.midi.channel + delta)
         else:
-            self.pc.set_page(self.pc.page + delta)
+            self.pm.set_page(self.pm.page + delta)
             self.state = State.PAGE_CHANGE
 
     def send_midi_pc(self):
@@ -124,10 +129,10 @@ class MidiProgramController:
         # Refresh display
         match self.state:
             case State.IDLE:
-                disp.number(self.pc.page)
+                disp.number(self.pm.page)
 
             case State.PAGE_CHANGE:
-                disp.number(self.pc.page)
+                disp.number(self.pm.page)
 
                 # Go into wait mode and trigger a send state after a short period
                 self.state = State.PAGE_CHANGE_WAIT
@@ -139,11 +144,11 @@ class MidiProgramController:
 
             case State.PAGE_CHANGE_WAIT:
                 led_brightness = 25.0
-                disp.number(self.pc.page)
+                disp.number(self.pm.page)
 
             case State.SEND_PC_MESSAGE:
                 self.send_timer.deinit()
-                self.midi.write_program_change(self.pc.midi_program)
+                self.midi.write_program_change(self.pm.program)
 
                 # Blink the send LED once
                 send_led.on()
@@ -155,7 +160,7 @@ class MidiProgramController:
                 self.state = State.PROGRAM_CHANGE_DISP
 
             case State.PROGRAM_CHANGE_DISP:
-                disp.show(f"P{self.pc.midi_program:3}")
+                disp.show(f"P{self.pm.program:3}")
 
             case State.CONFIG:
                 self.send_timer.deinit()
@@ -167,4 +172,8 @@ class MidiProgramController:
         # Update LED states
         for led in patch_led:
             led.duty_u16(0)
-        patch_led[self.pc.patch].duty_u16(pwm_duty(led_brightness))
+        patch_led[self.pm.patch].duty_u16(pwm_duty(led_brightness))
+
+
+midi_pc = MidiProgramController()
+midi_pc.init(frequency=120)
