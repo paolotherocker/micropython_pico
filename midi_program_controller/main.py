@@ -1,5 +1,5 @@
 import tm1637
-from machine import Pin, Timer, PWM
+from machine import Pin, Timer, PWM, UART
 from enum import Enum
 import math
 
@@ -15,16 +15,13 @@ patch_led = [PWM(Pin(24, Pin.OUT)), PWM(Pin(25, Pin.OUT)), PWM(Pin(26, Pin.OUT))
 send_led = Pin(27, Pin.OUT)
 disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
 
-n_pages = math.ceil(127 / len(patch_btn))
-
-
-def clamp(value: int | float, lower_bound: int | float, upper_bound: int | float) -> int | float:
-    return max(min(value, upper_bound), lower_bound)
+k_midi_uart_id = 0
+k_pages = math.ceil(127 / len(patch_btn))
 
 
 def pwm_duty(pct: float) -> float:
     """Calculate PWM duty cycle from a percentage value"""
-    return 65025 * clamp(pct, 0, 100) * 0.01
+    return 65025 * max(min(pct, 100.0), 0.0) * 0.01
 
 
 class State(Enum):
@@ -36,10 +33,25 @@ class State(Enum):
     CONFIG = 5
 
 
-class MidiProgramManager:
+class Midi:
+    def __init__(self, UART_id: int) -> None:
+        self.channel = int(0)
+        self.uart = UART(UART_id)
+        self.uart.init(baudrate=31250)
+
+    def set_channel(self, channel: int):
+        if channel < 0 or channel > 15:
+            print(f"Channel {channel} request is out of bound")
+            return
+        self.channel = channel
+
+    def write_program_change(self, program: int) -> None:
+        self.uart.write(bytearray([0xC0 | self.channel, program]))
+
+
+class MidiProgramChange:
     def __init__(self) -> None:
         self.midi_program = int(0)
-        self.midi_channel = int(0)
         self.page = int(0)
         self.patch = int(0)
 
@@ -48,25 +60,20 @@ class MidiProgramManager:
         self._update_program()
 
     def set_page(self, page_number: int):
-        if page_number < 0 or page_number > n_pages:
+        if page_number < 0 or page_number > k_pages:
             print(f"Page {page_number} request is out of bound")
             return
         self.page = page_number
         self._update_program()
 
-    def set_channel(self, channel: int):
-        if channel < 0 or channel > 15:
-            print(f"Channel {channel} request is out of bound")
-            return
-        self.midi_channel = channel
-
     def _update_program(self):
-        self.midi_program = clamp(self.page * 3 + self.patch, 0, 127)
+        self.midi_program = max(min(self.page * 3 + self.patch, 127), 0)
 
 
 class MidiProgramController:
     def __init__(self) -> None:
-        self.pm = MidiProgramManager()
+        self.midi = Midi(k_midi_uart_id)
+        self.pc = MidiProgramChange()
 
         self.state = State.IDLE
 
@@ -77,7 +84,7 @@ class MidiProgramController:
             led.freq(1000)
 
         for idx, btn in enumerate(patch_btn):
-            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.patch_callback(idx))
+            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.patch_press_callback(idx))
             btn.irq(
                 trigger=Pin.IRQ_FALLING,
                 handler=self.patch_release_callback,
@@ -93,9 +100,8 @@ class MidiProgramController:
         # Main update loop
         self.update_timer.init(mode=Timer.PERIODIC, freq=120, callback=self.update_callback)
 
-    def patch_callback(self, value: int):
-        # Don't do anything if we are in configuration mode
-        self.pm.set_patch(value)
+    def patch_press_callback(self, value: int):
+        self.pc.set_patch(value)
         self.state = State.SEND_PC_MESSAGE
 
     def patch_release_callback(self, pin: Pin):
@@ -104,9 +110,9 @@ class MidiProgramController:
 
     def page_update_callback(self, delta: int):
         if self.state is State.CONFIG:
-            self.pm.set_channel(self.pm.midi_channel + delta)
+            self.midi.set_channel(self.midi.channel + delta)
         else:
-            self.pm.set_page(self.pm.page + delta)
+            self.pc.set_page(self.pc.page + delta)
             self.state = State.PAGE_CHANGE
 
     def send_midi_pc(self):
@@ -118,10 +124,10 @@ class MidiProgramController:
         # Refresh display
         match self.state:
             case State.IDLE:
-                disp.number(self.pm.page)
+                disp.number(self.pc.page)
 
             case State.PAGE_CHANGE:
-                disp.number(self.pm.page)
+                disp.number(self.pc.page)
 
                 # Go into wait mode and trigger a send state after a short period
                 self.state = State.PAGE_CHANGE_WAIT
@@ -133,11 +139,11 @@ class MidiProgramController:
 
             case State.PAGE_CHANGE_WAIT:
                 led_brightness = 25.0
-                disp.number(self.pm.page)
+                disp.number(self.pc.page)
 
             case State.SEND_PC_MESSAGE:
                 self.send_timer.deinit()
-                self.send_midi_pc()
+                self.midi.write_program_change(self.pc.midi_program)
 
                 # Blink the send LED once
                 send_led.on()
@@ -149,16 +155,16 @@ class MidiProgramController:
                 self.state = State.PROGRAM_CHANGE_DISP
 
             case State.PROGRAM_CHANGE_DISP:
-                disp.show(f"P{self.pm.midi_program:3}")
+                disp.show(f"P{self.pc.midi_program:3}")
 
             case State.CONFIG:
                 self.send_timer.deinit()
 
                 led_brightness = 25.0
                 # Add one to the Midi channel being displayed, as this seems to be quite common
-                disp.show(f"C{self.pm.midi_channel + 1:3}")
+                disp.show(f"C{self.midi.channel + 1:3}")
 
         # Update LED states
         for led in patch_led:
             led.duty_u16(0)
-        patch_led[self.pm.patch].duty_u16(pwm_duty(led_brightness))
+        patch_led[self.pc.patch].duty_u16(pwm_duty(led_brightness))
