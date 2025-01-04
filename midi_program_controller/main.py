@@ -2,6 +2,8 @@ import tm1637
 from machine import Pin, Timer, PWM, UART
 from enum import Enum
 import math
+import json
+from typing import Any
 
 # Pins
 p_patch_btn = [14, 15, 16]
@@ -13,6 +15,7 @@ p_send_led = 27
 # Other constants
 k_midi_uart_id = 0
 k_pages = math.ceil(127 / len(p_patch_btn))
+k_file_name = "data.json"
 
 
 def pwm_duty(pct: float) -> float:
@@ -47,9 +50,16 @@ class Midi:
 
 class MidiProgramManager:
     def __init__(self) -> None:
-        self.program = int(0)
-        self.page = int(0)
-        self.patch = int(0)
+        # Try to read from file first
+        data = dict[str, Any]()
+        try:
+            data = json.load(open(k_file_name))
+        except:
+            pass
+
+        self.program = data.get("program", 0)
+        self.page = data.get("page", 0)
+        self.patch = data.get("patch", 0)
 
     def set_patch(self, patch_number: int):
         self.patch = patch_number
@@ -61,6 +71,14 @@ class MidiProgramManager:
             return
         self.page = page_number
         self._update_program()
+
+    def save_to_file(self) -> None:
+        data = dict[str, Any]()
+        data["program"] = self.program
+        data["page"] = self.page
+        data["patch"] = self.patch
+        file = open(k_file_name, "w")
+        json.dump(data, file)
 
     def _update_program(self):
         self.program = max(min(self.page * 3 + self.patch, 127), 0)
@@ -76,12 +94,11 @@ class MidiProgramController:
         self.patch_led = [PWM(Pin(p, Pin.OUT)) for p in p_patch_led]
         self.send_led = Pin(p_send_led, Pin.OUT)
         self.disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
-
         self.midi = Midi(k_midi_uart_id)
+
+        # Internal variables
         self.pm = MidiProgramManager()
-
         self.state = State.IDLE
-
         self.send_timer = Timer()
         self.update_timer = Timer()
 
@@ -165,6 +182,7 @@ class MidiProgramController:
             case State.SEND_PC_MESSAGE:
                 self.send_timer.deinit()
                 self.midi.write_program_change(self.pm.program)
+                self.pm.save_to_file()
 
                 # Blink the send LED once
                 self.send_led.on()
