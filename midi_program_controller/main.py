@@ -16,11 +16,12 @@ p_send_led = 27
 k_midi_uart_id = 0
 k_pages = math.ceil(127 / len(p_patch_btn))
 k_file_name = "data.json"
+k_pwm_max = 65025
 
 
-def pwm_duty(pct: float) -> float:
-    """Calculate PWM duty cycle from a percentage value"""
-    return 65025 * max(min(pct, 100.0), 0.0) * 0.01
+def pwm_duty(ratio: float) -> float:
+    """Calculate PWM duty cycle from a ratio (0.0 to 1.0)"""
+    return k_pwm_max * max(min(ratio, 1.0), 0.0)
 
 
 class State(Enum):
@@ -157,7 +158,7 @@ class MidiProgramController:
         self.patch_led[self.pm.patch].duty_u16(pwm_duty(brightness))
 
     def update_callback(self, timer: Timer):
-        led_brightness = 100.0
+        led_brightness = 1.0
 
         # Refresh display
         match self.state:
@@ -176,7 +177,7 @@ class MidiProgramController:
                 )
 
             case State.PAGE_CHANGE_WAIT:
-                led_brightness = 25.0
+                led_brightness = 0.25
                 self.disp.number(self.pm.page)
 
             case State.SEND_PC_MESSAGE:
@@ -199,7 +200,7 @@ class MidiProgramController:
             case State.CONFIG:
                 self.send_timer.deinit()
 
-                led_brightness = 25.0
+                led_brightness = 0.25
                 # Add one to the Midi channel being displayed, as this seems to be quite common
                 self.disp.show(f"C{self.midi.channel + 1:3}")
 
