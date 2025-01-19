@@ -1,8 +1,10 @@
 import tm1637
 from machine import Pin
+import json
 
 k_led_pin = int(25)
 k_btn_pin = int(16)
+k_file_name = "data.json"
 
 
 class Test_tm1637:
@@ -11,6 +13,14 @@ class Test_tm1637:
         self.led = Pin(k_led_pin, Pin.OUT)
         self.value = 0
         self.btn = Pin(k_btn_pin, Pin.IN, Pin.PULL_UP)
+
+        # Try to read from file first
+        data = dict()
+        try:
+            data = json.load(open(k_file_name))
+        except:
+            pass
+        self.value = data.get("value", 0)
 
         self.disp.brightness(3)
         self.btn.irq(handler=self.button_callback)
@@ -29,6 +39,11 @@ class Test_tm1637:
             self.led.on()
         else:
             self.led.off()
+
+        data = dict()
+        data["value"] = self.value
+        file = open(k_file_name, "w")
+        json.dump(data, file)
 
 
 tm = Test_tm1637()
