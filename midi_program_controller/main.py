@@ -88,10 +88,10 @@ class MidiProgramManager:
 class MidiProgramController:
     def __init__(self) -> None:
         # Hardware
-        self.patch_btn = [Pin(x, Pin.IN, Pin.PULL_DOWN) for x in p_patch_btn]
-        self.btn_page_up = Pin(p_page_up, Pin.IN, Pin.PULL_DOWN)
-        self.btn_page_down = Pin(p_page_down, Pin.IN, Pin.PULL_DOWN)
-        self.btn_cfg = Pin(p_cfg, Pin.IN, Pin.PULL_DOWN)
+        self.patch_btn = [Pin(x, Pin.IN, Pin.PULL_UP) for x in p_patch_btn]
+        self.btn_page_up = Pin(p_page_up, Pin.IN, Pin.PULL_UP)
+        self.btn_page_down = Pin(p_page_down, Pin.IN, Pin.PULL_UP)
+        self.btn_cfg = Pin(p_cfg, Pin.IN, Pin.PULL_UP)
         self.patch_led = [PWM(Pin(p, Pin.OUT)) for p in p_patch_led]
         self.send_led = Pin(p_send_led, Pin.OUT)
         self.disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
@@ -112,31 +112,30 @@ class MidiProgramController:
         :param int frequency: frequency at which the state machine and display are updated
         """
         for idx, btn in enumerate(self.patch_btn):
-            btn.irq(trigger=Pin.IRQ_RISING, handler=lambda p: self.patch_press_callback(idx))
-            btn.irq(
-                trigger=Pin.IRQ_FALLING,
-                handler=self.patch_release_callback,
-            )
 
-        self.btn_page_up.irq(trigger=Pin.IRQ_RISING, handler=self.page_up_callback)
-        self.btn_page_down.irq(trigger=Pin.IRQ_RISING, handler=self.page_down_callback)
-        self.btn_cfg.irq(
-            trigger=Pin.IRQ_RISING, handler=lambda p: setattr(self, "state", State.CONFIG)
-        )
-        self.btn_cfg.irq(
-            trigger=Pin.IRQ_FALLING, handler=lambda p: setattr(self, "state", State.SEND_PC_MESSAGE)
-        )
+            def patch_callback(p: Pin):
+                if p.value() is 0:
+                    self.pm.set_patch(idx)
+                    self.state = State.SEND_PC_MESSAGE
+                elif self.state is State.PROGRAM_CHANGE_DISP:
+                    self.state = State.IDLE
+
+            btn.irq(handler=patch_callback)
+
+        self.btn_page_up.irq(trigger=Pin.IRQ_FALLING, handler=self.page_up_callback)
+        self.btn_page_down.irq(trigger=Pin.IRQ_FALLING, handler=self.page_down_callback)
+        self.btn_cfg.irq(handler=self.cfg_callback)
 
         # Main update loop
-        self.update_timer.init(mode=Timer.PERIODIC, freq=frequency, callback=self.update_callback)
+        self.update_timer.init(
+            mode=Timer.PERIODIC, freq=frequency, callback=self.update_callback
+        )
 
-    def patch_press_callback(self, value: int):
-        self.pm.set_patch(value)
-        self.state = State.SEND_PC_MESSAGE
-
-    def patch_release_callback(self, pin: Pin):
-        if self.state is State.PROGRAM_CHANGE_DISP:
-            self.state = State.IDLE
+    def cfg_callback(self, p: Pin):
+        if p.value() is 0:
+            self.state = State.CONFIG
+        else:
+            self.state = State.SEND_PC_MESSAGE
 
     def page_up_callback(self, p: Pin):
         if self.state is State.CONFIG:
@@ -188,7 +187,9 @@ class MidiProgramController:
                 # Blink the send LED once
                 self.send_led.on()
                 self.send_timer.init(
-                    mode=Timer.ONE_SHOT, period=250, callback=lambda t: self.send_led.off()
+                    mode=Timer.ONE_SHOT,
+                    period=250,
+                    callback=lambda t: self.send_led.off(),
                 )
 
                 # Go into program display mode and trigger the idle state after a short period
@@ -210,3 +211,6 @@ class MidiProgramController:
 
 midi_pc = MidiProgramController()
 midi_pc.init(frequency=120)
+
+while 1:
+    pass
