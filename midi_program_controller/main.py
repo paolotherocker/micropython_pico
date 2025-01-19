@@ -1,6 +1,5 @@
 import tm1637
 from machine import Pin, Timer, PWM, UART
-from enum import Enum
 import math
 import json
 from typing import Any
@@ -24,7 +23,7 @@ def pwm_duty(ratio: float) -> float:
     return k_pwm_max * max(min(ratio, 1.0), 0.0)
 
 
-class State(Enum):
+class State:
     IDLE = 0
     PAGE_CHANGE = 1
     PAGE_CHANGE_WAIT = 2
@@ -160,50 +159,49 @@ class MidiProgramController:
         led_brightness = 1.0
 
         # Refresh display
-        match self.state:
-            case State.IDLE:
-                self.disp.number(self.pm.page)
+        if self.state is State.IDLE:
+            self.disp.number(self.pm.page)
 
-            case State.PAGE_CHANGE:
-                self.disp.number(self.pm.page)
+        elif self.state is State.PAGE_CHANGE:
+            self.disp.number(self.pm.page)
 
-                # Go into wait mode and trigger a send state after a short period
-                self.state = State.PAGE_CHANGE_WAIT
-                self.send_timer.init(
-                    mode=Timer.ONE_SHOT,
-                    period=500,
-                    callback=lambda t: setattr(self, "state", State.SEND_PC_MESSAGE),
-                )
+            # Go into wait mode and trigger a send state after a short period
+            self.state = State.PAGE_CHANGE_WAIT
+            self.send_timer.init(
+                mode=Timer.ONE_SHOT,
+                period=500,
+                callback=lambda t: setattr(self, "state", State.SEND_PC_MESSAGE),
+            )
 
-            case State.PAGE_CHANGE_WAIT:
-                led_brightness = 0.25
-                self.disp.number(self.pm.page)
+        elif self.state is State.PAGE_CHANGE_WAIT:
+            led_brightness = 0.25
+            self.disp.number(self.pm.page)
 
-            case State.SEND_PC_MESSAGE:
-                self.send_timer.deinit()
-                self.midi.write_program_change(self.pm.program)
-                self.pm.save_to_file()
+        elif self.state is State.SEND_PC_MESSAGE:
+            self.send_timer.deinit()
+            self.midi.write_program_change(self.pm.program)
+            self.pm.save_to_file()
 
-                # Blink the send LED once
-                self.send_led.on()
-                self.send_timer.init(
-                    mode=Timer.ONE_SHOT,
-                    period=250,
-                    callback=lambda t: self.send_led.off(),
-                )
+            # Blink the send LED once
+            self.send_led.on()
+            self.send_timer.init(
+                mode=Timer.ONE_SHOT,
+                period=250,
+                callback=lambda t: self.send_led.off(),
+            )
 
-                # Go into program display mode and trigger the idle state after a short period
-                self.state = State.PROGRAM_CHANGE_DISP
+            # Go into program display mode and trigger the idle state after a short period
+            self.state = State.PROGRAM_CHANGE_DISP
 
-            case State.PROGRAM_CHANGE_DISP:
-                self.disp.show(f"P{self.pm.program:3}")
+        elif self.state is State.PROGRAM_CHANGE_DISP:
+            self.disp.show(f"P{self.pm.program:3}")
 
-            case State.CONFIG:
-                self.send_timer.deinit()
+        elif self.state is State.CONFIG:
+            self.send_timer.deinit()
 
-                led_brightness = 0.25
-                # Add one to the Midi channel being displayed, as this seems to be quite common
-                self.disp.show(f"C{self.midi.channel + 1:3}")
+            led_brightness = 0.25
+            # Add one to the Midi channel being displayed, as this seems to be quite common
+            self.disp.show(f"C{self.midi.channel + 1:3}")
 
         # Update LED states
         self.set_patch_led(led_brightness)
