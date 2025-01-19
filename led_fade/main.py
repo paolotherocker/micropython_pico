@@ -2,8 +2,8 @@ from machine import Pin, Timer, PWM
 
 
 class State:
-    UP = 1
-    DOWN = 2
+    UP = int(1)
+    DOWN = int(2)
 
 
 k_pwm_max = 65025
