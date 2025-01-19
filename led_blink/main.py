@@ -9,3 +9,6 @@ def blink(timer):
 
 
 timer.init(freq=2, mode=Timer.PERIODIC, callback=blink)
+
+while True:
+    pass

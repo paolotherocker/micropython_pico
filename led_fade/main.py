@@ -35,3 +35,6 @@ class LedFader:
 
 
 led_fader = LedFader()
+
+while True:
+    pass
