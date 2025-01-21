@@ -4,7 +4,7 @@ led = Pin(25, Pin.OUT)
 timer = Timer()
 
 
-def blink(timer):
+def blink(timer: Timer):
     led.toggle()
 
 
