@@ -22,15 +22,6 @@ def pwm_duty(ratio: float) -> float:
     return k_pwm_max * max(min(ratio, 1.0), 0.0)
 
 
-class State:
-    IDLE = 0
-    PAGE_CHANGE = 1
-    PAGE_CHANGE_WAIT = 2
-    SEND_PC_MESSAGE = 3
-    PROGRAM_CHANGE_DISP = 4
-    CONFIG = 5
-
-
 class Midi:
     def __init__(self, UART_id: int) -> None:
         self.channel = k_midi_channel
@@ -97,13 +88,13 @@ class MidiProgramController:
 
         # Internal variables
         self.pm = MidiProgramManager()
-        self.state = State.IDLE
         self.send_timer = Timer()
         self.btn_timer = Timer()
 
         for led in self.patch_led:
             led.freq(1000)
         self.disp.brightness(3)
+        self.disp.number(self.pm.page)
 
         # Link patch button callbacks
         for idx, btn in enumerate(self.patch_btn):
@@ -129,72 +120,52 @@ class MidiProgramController:
             ),
         )
 
+    def set_patch(self, patch: int):
+        self.pm.set_patch(patch)
+        self.midi.write_program_change(self.pm.program)
+        self.pm.save_to_file()
+
+        # Blink the send LED once
+        self.send_led.on()
+        self.send_timer.init(
+            mode=Timer.ONE_SHOT, period=100, callback=lambda t: self.send_led.off()
+        )
+
+        self.set_patch_led(0.8)
+
     def patch_callback(self, idx: int):
         if self.patch_btn[idx].value() is 0:
-            self.pm.set_patch(idx)
-            self.state = State.SEND_PC_MESSAGE
+            self.set_patch(idx)
+            self.disp.show(f"P{self.pm.program:3}")
         else:
-            self.state = State.IDLE
+            self.disp.number(self.pm.page)
 
     def page_callback(self, p: Pin):
         if self.btn_page_up.value() is 0:
-            delta = 1
+            self.pm.set_page(self.pm.page + 1)
         elif self.btn_page_down.value() is 0:
-            delta = -1
+            self.pm.set_page(self.pm.page - 1)
         else:
             return
 
-        self.pm.set_page(self.pm.page + delta)
-        self.state = State.PAGE_CHANGE
+        # Trigger a patch set after a delay
+        self.send_timer.init(
+            mode=Timer.ONE_SHOT,
+            period=500,
+            callback=lambda t: self.set_patch(self.pm.patch),
+        )
+
+        # Dim the LEDs a bit while the page is changing
+        self.set_patch_led(0.2)
+        self.disp.number(self.pm.page)
 
     def set_patch_led(self, brightness: float):
         for led in self.patch_led:
             led.duty_u16(0)
         self.patch_led[self.pm.patch].duty_u16(pwm_duty(brightness))
 
-    def update(self):
-        led_brightness = 0.8
-
-        # Refresh display
-        if self.state is State.IDLE:
-            self.disp.number(self.pm.page)
-
-        elif self.state is State.PAGE_CHANGE:
-            self.disp.number(self.pm.page)
-
-            # Go into wait mode and trigger a send state after a short period
-            self.state = State.PAGE_CHANGE_WAIT
-            self.send_timer.init(
-                mode=Timer.ONE_SHOT,
-                period=500,
-                callback=lambda t: setattr(self, "state", State.SEND_PC_MESSAGE),
-            )
-
-        elif self.state is State.PAGE_CHANGE_WAIT:
-            led_brightness = 0.25
-            self.disp.number(self.pm.page)
-
-        elif self.state is State.SEND_PC_MESSAGE:
-            self.midi.write_program_change(self.pm.program)
-            self.pm.save_to_file()
-
-            # Blink the send LED once
-            self.send_led.on()
-            self.send_timer.init(
-                mode=Timer.ONE_SHOT, period=250, callback=lambda t: self.send_led.off()
-            )
-
-            # Go into program display mode and trigger the idle state after a short period
-            self.state = State.PROGRAM_CHANGE_DISP
-
-        elif self.state is State.PROGRAM_CHANGE_DISP:
-            self.disp.show(f"P{self.pm.program:3}")
-
-        # Update LED states
-        self.set_patch_led(led_brightness)
-
 
 midi_pc = MidiProgramController()
 
 while 1:
-    midi_pc.update()
+    pass
