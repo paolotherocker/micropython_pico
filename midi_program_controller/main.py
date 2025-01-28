@@ -96,22 +96,16 @@ class MidiProgramController:
 
         for led in self.patch_led:
             led.freq(1000)
+            led.duty_u16(0)
         self.send_led.off()
-        self.set_patch_led(0.8)
 
         self.disp.brightness(3)
         self.disp.number(self.pm.page)
 
         # Link patch button callbacks
-        self.patch_btn[0].irq(
-            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(0)
-        )
-        self.patch_btn[1].irq(
-            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(1)
-        )
-        self.patch_btn[2].irq(
-            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(2)
-        )
+        self.patch_btn[0].irq(handler=lambda p: self.patch_callback(0))
+        self.patch_btn[1].irq(handler=lambda p: self.patch_callback(1))
+        self.patch_btn[2].irq(handler=lambda p: self.patch_callback(2))
 
         # Link page button callbacks
         self.btn_page_up.irq(
@@ -127,6 +121,8 @@ class MidiProgramController:
             ),
         )
 
+        self.set_patch(self.pm.patch)
+
     def set_patch(self, patch: int):
         self.pm.set_patch(patch)
         self.midi.write_program_change(self.pm.program)
@@ -135,15 +131,18 @@ class MidiProgramController:
         # Blink the send LED once
         self.send_led.on()
         self.send_timer.init(
-            mode=Timer.ONE_SHOT, period=100, callback=lambda t: self.send_led.off()
+            mode=Timer.ONE_SHOT, period=50, callback=lambda t: self.send_led.off()
         )
 
         self.set_patch_led(0.8)
 
     def patch_callback(self, idx: int):
-        self.btn_timer.init(
-            mode=Timer.ONE_SHOT, period=25, callback=lambda t: self.set_patch(idx)
-        )
+        if self.patch_btn[idx].value() is 0:
+            self.btn_timer.init(
+                mode=Timer.ONE_SHOT, period=25, callback=lambda t: self.set_patch(idx)
+            )
+        else:
+            self.btn_timer.deinit()
 
     def page_callback(self, p: Pin):
         if self.btn_page_up.value() is 0:
