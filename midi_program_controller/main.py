@@ -4,11 +4,13 @@ import math
 import json
 
 # Pins
-p_patch_btn = [14, 15, 16]
-p_patch_led = [24, 25, 26]
-p_page_up = 17
-p_page_down = 19
-p_send_led = 27
+p_patch_btn = [6, 7, 8]
+p_patch_led = [18, 19, 20]
+p_page_up = 10
+p_page_down = 9
+p_send_led = 21
+p_disp_clk = 26
+p_disp_dio = 27
 # Other constants
 k_midi_uart_id = 0
 k_pages = math.ceil(127 / len(p_patch_btn))
@@ -17,9 +19,9 @@ k_pwm_max = 65025
 k_midi_channel = 0
 
 
-def pwm_duty(ratio: float) -> float:
+def pwm_duty(ratio: float) -> int:
     """Calculate PWM duty cycle from a ratio (0.0 to 1.0)"""
-    return k_pwm_max * max(min(ratio, 1.0), 0.0)
+    return int(k_pwm_max * max(min(ratio, 1.0), 0.0))
 
 
 class Midi:
@@ -83,7 +85,7 @@ class MidiProgramController:
         self.btn_page_down = Pin(p_page_down, Pin.IN, Pin.PULL_UP)
         self.patch_led = [PWM(Pin(p, Pin.OUT)) for p in p_patch_led]
         self.send_led = Pin(p_send_led, Pin.OUT)
-        self.disp = tm1637.TM1637(clk=Pin(31), dio=Pin(32))
+        self.disp = tm1637.TM1637(clk=Pin(p_disp_clk), dio=Pin(p_disp_dio))
         self.midi = Midi(k_midi_uart_id)
 
         # Internal variables
