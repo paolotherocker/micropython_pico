@@ -91,22 +91,27 @@ class MidiProgramController:
         # Internal variables
         self.pm = MidiProgramManager()
         self.send_timer = Timer()
+        self.disp_timer = Timer()
         self.btn_timer = Timer()
 
         for led in self.patch_led:
             led.freq(1000)
+        self.send_led.off()
+        self.set_patch_led(0.8)
+
         self.disp.brightness(3)
         self.disp.number(self.pm.page)
 
         # Link patch button callbacks
-        for idx, btn in enumerate(self.patch_btn):
-            btn.irq(
-                handler=lambda p: self.btn_timer.init(
-                    mode=Timer.ONE_SHOT,
-                    period=25,
-                    callback=lambda t: self.patch_callback(idx),
-                )
-            )
+        self.patch_btn[0].irq(
+            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(0)
+        )
+        self.patch_btn[1].irq(
+            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(1)
+        )
+        self.patch_btn[2].irq(
+            trigger=Pin.IRQ_FALLING, handler=lambda p: self.patch_callback(2)
+        )
 
         # Link page button callbacks
         self.btn_page_up.irq(
@@ -136,11 +141,9 @@ class MidiProgramController:
         self.set_patch_led(0.8)
 
     def patch_callback(self, idx: int):
-        if self.patch_btn[idx].value() is 0:
-            self.set_patch(idx)
-            self.disp.show(f"P{self.pm.program:3}")
-        else:
-            self.disp.number(self.pm.page)
+        self.btn_timer.init(
+            mode=Timer.ONE_SHOT, period=25, callback=lambda t: self.set_patch(idx)
+        )
 
     def page_callback(self, p: Pin):
         if self.btn_page_up.value() is 0:
