@@ -17,6 +17,8 @@ k_pages = math.ceil(127 / len(p_patch_btn))
 k_file_name = "data.json"
 k_pwm_max = 65025
 k_midi_channel = 0
+k_led_high_brightness = 0.2
+k_led_low_brightness = 0.05
 
 
 def pwm_duty(ratio: float) -> int:
@@ -32,7 +34,6 @@ class Midi:
 
     def set_channel(self, channel: int):
         if channel < 0 or channel > 15:
-            print(f"Channel {channel} request is out of bound")
             return
         self.channel = channel
 
@@ -84,7 +85,7 @@ class MidiProgramController:
         self.btn_page_up = Pin(p_page_up, Pin.IN, Pin.PULL_UP)
         self.btn_page_down = Pin(p_page_down, Pin.IN, Pin.PULL_UP)
         self.patch_led = [PWM(Pin(p, Pin.OUT)) for p in p_patch_led]
-        self.send_led = Pin(p_send_led, Pin.OUT)
+        self.send_led = PWM(Pin(p_send_led, Pin.OUT))
         self.disp = tm1637.TM1637(clk=Pin(p_disp_clk), dio=Pin(p_disp_dio))
         self.midi = Midi(k_midi_uart_id)
 
@@ -97,7 +98,7 @@ class MidiProgramController:
         for led in self.patch_led:
             led.freq(1000)
             led.duty_u16(0)
-        self.send_led.off()
+        self.send_led.duty_u16(0)
 
         self.disp.brightness(3)
         self.disp.number(self.pm.page)
@@ -129,12 +130,12 @@ class MidiProgramController:
         self.pm.save_to_file()
 
         # Blink the send LED once
-        self.send_led.on()
+        self.send_led.duty_u16(pwm_duty(k_led_low_brightness))
         self.send_timer.init(
-            mode=Timer.ONE_SHOT, period=50, callback=lambda t: self.send_led.off()
+            mode=Timer.ONE_SHOT, period=50, callback=lambda t: self.send_led.duty_u16(0)
         )
 
-        self.set_patch_led(0.8)
+        self.set_patch_led(k_led_high_brightness)
 
     def patch_callback(self, idx: int):
         if self.patch_btn[idx].value() is 0:
@@ -155,12 +156,12 @@ class MidiProgramController:
         # Trigger a patch set after a delay
         self.send_timer.init(
             mode=Timer.ONE_SHOT,
-            period=500,
+            period=250,
             callback=lambda t: self.set_patch(self.pm.patch),
         )
 
         # Dim the LEDs a bit while the page is changing
-        self.set_patch_led(0.2)
+        self.set_patch_led(k_led_low_brightness)
         self.disp.number(self.pm.page)
 
     def set_patch_led(self, brightness: float):
