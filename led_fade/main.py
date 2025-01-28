@@ -6,6 +6,7 @@ class State:
     DOWN = int(2)
 
 
+p_led_pin = 25
 k_pwm_max = 65025
 
 
@@ -18,7 +19,7 @@ class LedFader:
     def __init__(self) -> None:
         self.brightness = 0.0
         self.timer = Timer()
-        self.led = PWM(Pin(25, Pin.OUT))
+        self.led = PWM(Pin(p_led_pin, Pin.OUT))
         self.state = State.UP
 
         self.led.freq(1000)
