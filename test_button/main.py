@@ -67,4 +67,4 @@ while True:
     if button_state != Button.OFF:
         print(button_state)
         
-    time.sleep_ms(100)
+    time.sleep_ms(10)
