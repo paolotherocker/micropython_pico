@@ -3,7 +3,7 @@ from micropython import const
 import time
 
 BUTTON_PIN = const(15)      # GPIO pin the button is connected to
-DEBOUNCE_MS = const(100)
+DEBOUNCE_MS = const(30)
 LONG_PRESS_MS = const(600)
 
 
@@ -17,7 +17,6 @@ class Button:
         self._button = Pin(pin_, Pin.IN, Pin.PULL_UP)
         self._button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._on_irq)
         self._last_edge = time.ticks_ms()
-        self._previous_edge = self._last_edge
         self._flag = False
         self._long_press = False
 
@@ -27,9 +26,9 @@ class Button:
             return  # ignore bounce
         self._last_edge = now
 
+        # If the previous event was a long press, don't set the flag to avoid triggering a short press
         if self._long_press == True:
             self._long_press = False
-            self._flag = False
         else:
             self._flag = True
 
@@ -41,6 +40,7 @@ class Button:
             return self.OFF
 
         # the button is pressed, check if was pressed long enough for long press
+        # continue without resetting the flag
         if is_pressed:
             if time.ticks_diff(now, self._last_edge) > LONG_PRESS_MS:
                 self._long_press = True
