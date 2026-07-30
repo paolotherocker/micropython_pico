@@ -18,39 +18,40 @@ class Button:
         self._button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._on_irq)
         self._last_edge = time.ticks_ms()
         self._previous_edge = self._last_edge
-        self._state = self.OFF
+        self._flag = False
+        self._long_press = False
 
     def _on_irq(self, pin):
         now = time.ticks_ms()
         if time.ticks_diff(now, self._last_edge) < DEBOUNCE_MS:
             return  # ignore bounce
-        self._previous_edge = self._last_edge
         self._last_edge = now
+
+        if self._long_press == True:
+            self._long_press = False
+            self._flag = False
+        else:
+            self._flag = True
 
     def consume(self)->int:
         now = time.ticks_ms()
+        is_pressed = self._button.value() == 0
 
-        old_state = self._state
+        if self._flag == False:
+            return self.OFF
 
         # the button is pressed, check if was pressed long enough for long press
-        if self._button.value() == 0:
+        if is_pressed:
             if time.ticks_diff(now, self._last_edge) > LONG_PRESS_MS:
-                self._state = self.LONG_PRESS
-            else:
-                self._state = self.OFF
+                self._long_press = True
+                self._flag = False
+                return self.LONG_PRESS
         # the button is not pressed, check that we aren't following a long press
         else:
-            if time.ticks_diff(self._last_edge, self._previous_edge) < LONG_PRESS_MS:
-                # reset the time so this can only happen once
-                self._previous_edge = 0
-                self._state = self.SHORT_PRESS
-            else:
-                self._state = self.OFF
+            self._flag = False
+            return self.SHORT_PRESS
 
-        if old_state != self._state:
-            return self._state
-        else:
-            return self.OFF
+        return self.OFF
         
         
 button = Button(BUTTON_PIN)
