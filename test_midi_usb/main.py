@@ -1,43 +1,42 @@
 import time
 import machine
-import usb.device
-from usb.device.midi import MIDIInterface
+import sys
 
-# --- Configuration ---
-BUTTON_PIN = 15      # GPIO pin the button is connected to
-CHANNEL = 0           # MIDI channel (0-15)
-CONTROLLER = 64       # CC number (e.g. 64 = sustain pedal)
-CC_VALUE_ON = 127     # Value sent when button is pressed
-CC_VALUE_OFF = 0      # Value sent when button is released
-DEBOUNCE_MS = 200
+led = machine.Pin("LED", machine.Pin.OUT)
 
-button = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
+def blink(n):
+    for _ in range(n):
+        led.on()
+        time.sleep_ms(100)
+        led.off()
+        time.sleep_ms(100)
 
-midi = MIDIInterface(num_cables=1)
-usb.device.get().init(midi, builtin_driver=True)
+blink(1)  # Reached start of script
 
-print("Waiting for USB host to configure MIDI interface...")
-while not midi.is_open():
-    time.sleep_ms(100)
+try:
+    import usb.device
+    from usb.device.midi import MIDIInterface
 
-print("MIDI device ready. Press the button to send CC messages.")
+    midi = MIDIInterface()
+    blink(2)  # MIDIInterface object created
 
-last_state = button.value()  # 1 = released (pull-up), 0 = pressed
-last_change_time = time.ticks_ms()
+    usb.device.get().init(midi, builtin_driver=True, product_str="MicroPython CC Button")
+    blink(3)  # init() returned, USB re-enumeration triggered
 
-while midi.is_open():
-    current_state = button.value()
-    now = time.ticks_ms()
+    while not midi.is_open():
+        time.sleep_ms(100)
+    blink(4)  # Host has opened the MIDI interface, ready to send
 
-    if current_state != last_state and time.ticks_diff(now, last_change_time) > DEBOUNCE_MS:
-        last_change_time = now
-        last_state = current_state
+except Exception as e:
+    with open("error_log.txt", "w") as f:
+        sys.print_exception(e, f)
+    while True:
+        blink(6)  # Crashed, check error_log.txt
 
-        if current_state == 0:  # Button pressed (active low)
-            midi.control_change(CHANNEL, CONTROLLER, CC_VALUE_ON)
-            print(f"CC {CONTROLLER} -> {CC_VALUE_ON}")
-        else:  # Button released
-            midi.control_change(CHANNEL, CONTROLLER, CC_VALUE_OFF)
-            print(f"CC {CONTROLLER} -> {CC_VALUE_OFF}")
-
-    time.sleep_ms(5)
+while True:
+    led.on()
+    midi.control_change(0, 64, 127)
+    time.sleep_ms(1000)
+    midi.control_change(0, 64, 0)
+    led.off()
+    time.sleep_ms(1000)
