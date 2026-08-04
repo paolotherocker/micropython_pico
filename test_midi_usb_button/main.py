@@ -11,15 +11,19 @@ CC_VALUE_OFF = 0
 DEBOUNCE_MS = 20
 
 button = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
+led = machine.Pin(25, machine.Pin.OUT)
 
 midi = MIDIInterface()
 usb.device.get().init(midi, builtin_driver=True, product_str="MicroPython CC Button")
 
 print("Waiting for USB host to configure MIDI interface...")
 while not midi.is_open():
-    time.sleep_ms(100)
+    time.sleep_ms(200)
+    led.toggle()
+
 
 print("MIDI device ready. Press the button to send CC messages.")
+led.on()
 
 last_state = button.value()  # 1 = released (pull-up), 0 = pressed
 last_change_time = time.ticks_ms()
