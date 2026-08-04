@@ -5,7 +5,7 @@ from usb.device.midi import MIDIInterface
 
 BUTTON_PIN = 15
 CHANNEL = 0
-CONTROLLER = 33
+CONTROLLER = 24
 CC_VALUE_ON = 127
 CC_VALUE_OFF = 0
 DEBOUNCE_MS = 20
