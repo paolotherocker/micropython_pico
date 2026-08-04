@@ -1,3 +1,6 @@
 [submodule "external/micropython-tm1637"]
 	path = external/micropython-tm1637
 	url = https://github.com/mcauser/micropython-tm1637.git
+[submodule "external/micropython-lib"]
+	path = external/micropython-lib
+	url = https://github.com/micropython/micropython-lib.git
