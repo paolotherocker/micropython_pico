@@ -5,7 +5,7 @@ import time
 
 BUTTON_PIN = const(15)  # GPIO pin the button is connected to
 
-button = Button(BUTTON_PIN)
+button = Button(Pin(BUTTON_PIN, Pin.IN, Pin.PULL_UP))
 led = Pin(25, Pin.OUT)
 
 button_event = ButtonEvent.NONE
@@ -15,6 +15,11 @@ prev_state = False
 while True:
     button_event = button.consume_event()
     state = button.is_pressed()
+
+    if state == True:
+        led.on()
+    else:
+        led.off()
 
     if state != prev_state and state == True:
         print("pressed")

@@ -16,8 +16,8 @@ class ButtonEvent:
 
 class Button:
 
-    def __init__(self, pin: int, debounce_ms: int = 30, long_press_ms: int = 600):
-        self._button = Pin(pin, Pin.IN, Pin.PULL_UP)
+    def __init__(self, pin: Pin, debounce_ms: int = 30, long_press_ms: int = 600):
+        self._button = pin
         self._button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._on_irq)
         self._debounce_ms = debounce_ms
         self._long_press_ms = long_press_ms
