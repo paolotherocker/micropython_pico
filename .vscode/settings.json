@@ -1,6 +1,6 @@
 {
     "python.languageServer": "Pylance",
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "off",
     "python.analysis.diagnosticSeverityOverrides": {
         "reportMissingModuleSource": "none"
     },
@@ -13,5 +13,6 @@
     "python.analysis.extraPaths": [
         "~/.micropico-stubs/included",
         "/Users/paolo/Library/Python/3.10/lib/python/site-packages"
-    ]
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }
