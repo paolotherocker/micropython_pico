@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote mip install usb-device-midi
+"""
+
 import time
 import machine
 import usb.device

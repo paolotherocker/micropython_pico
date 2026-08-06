@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote mip install usb-device-midi
+"""
+
 import tm1637
 from machine import Pin, Timer, PWM, UART
 import math
