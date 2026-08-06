@@ -1,6 +1,7 @@
 """
 Install dependencies:
 mpremote mip install usb-device-midi
+mpremote fs cp lib_common/button.py :
 """
 
 import time

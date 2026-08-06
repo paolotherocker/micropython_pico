@@ -1,3 +1,8 @@
+"""
+mpremote mip install neopixel
+mpremote fs cp lib_common/button.py :
+"""
+
 import time
 from machine import Pin
 from neopixel import NeoPixel

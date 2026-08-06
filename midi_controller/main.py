@@ -1,5 +1,5 @@
 """
 Install dependencies:
-mpremote mip install usb-device-midi
-mpremote mip install github:mcauser/micropython-tm1637
+mpremote mip install usb-device-midi neopixel github:mcauser/micropython-tm1637
+mpremote fs cp lib_common/button.py :
 """

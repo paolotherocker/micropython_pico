@@ -1,6 +1,6 @@
 """
 Install dependencies:
-mpremote mip install usb-device-midi tm1637
+mpremote mip install usb-device-midi
 """
 
 import time

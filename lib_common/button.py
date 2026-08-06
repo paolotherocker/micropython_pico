@@ -1,7 +1,4 @@
-"""
-Dependencies:
-mpremote mip install enum
-"""
+""" """
 
 from machine import Pin
 from micropython import const

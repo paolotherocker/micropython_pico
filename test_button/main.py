@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote fs cp lib_common/button.py :
+"""
+
 from machine import Pin
 from micropython import const
 from button import Button, ButtonEvent

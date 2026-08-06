@@ -15,7 +15,7 @@
         "/Users/paolo/Library/Python/3.10/lib/python/site-packages",
         "${workspaceFolder}/external/micropython-lib/micropython/usb/usb-device-midi",
         "${workspaceFolder}/external/micropython-tm1637",
-        "${workspaceFolder}/common"
+        "${workspaceFolder}/lib_common"
     ],
     "python-envs.defaultEnvManager": "ms-python.python:system"
 }
