@@ -14,6 +14,7 @@
         "~/.micropico-stubs/included",
         "/Users/paolo/Library/Python/3.10/lib/python/site-packages",
         "${workspaceFolder}/external/micropython-lib/micropython/usb/usb-device-midi",
+        "${workspaceFolder}/external/micropython-lib/micropython/drivers/display/ssd1306",
         "${workspaceFolder}/external/micropython-tm1637",
         "${workspaceFolder}/lib_common"
     ],
