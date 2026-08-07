@@ -15,11 +15,11 @@ class ButtonEvent:
     """Enumeration of button events returned by `Button.consume_event`.
 
     Attributes:
-        NONE: No new event is available.
-        SHORT_PRESS: The button was pressed and released before the
-            long-press threshold elapsed.
-        LONG_PRESS: The button has been held down for at least the
-            configured long-press duration.
+    - NONE: No new event is available.
+    - SHORT_PRESS: The button was pressed and released before the
+        long-press threshold elapsed.
+    - LONG_PRESS: The button has been held down for at least the
+        configured long-press duration.
     """
 
     NONE = const(0)
@@ -37,16 +37,15 @@ class Button:
     """
 
     def __init__(self, pin: Pin, debounce_ms: int = 30, long_press_ms: int = 600):
-        """Initialize the button and attach the IRQ handler.
-
+        """
         Args:
-            pin: A `machine.Pin` instance configured as an input, active
-                low (pressed == 0).
-            debounce_ms: Minimum time, in milliseconds, that must pass
-                between edges for them to be considered distinct
-                (bounce shorter than this is ignored).
-            long_press_ms: Minimum hold duration, in milliseconds,
-                required for a press to be classified as a long press.
+        - pin: A `machine.Pin` instance configured as an input, active
+            low (pressed == 0).
+        - debounce_ms: Minimum time, in milliseconds, that must pass
+            between edges for them to be considered distinct
+            (bounce shorter than this is ignored).
+        - long_press_ms: Minimum hold duration, in milliseconds,
+            required for a press to be classified as a long press.
         """
         self._button = pin
         self._button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._on_irq)
