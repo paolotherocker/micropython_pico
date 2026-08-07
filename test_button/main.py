@@ -1,11 +1,11 @@
 """
 Install dependencies:
-mpremote fs cp lib_common/button.py :
+mpremote fs cp -r lib_common :/lib
 """
 
 from machine import Pin
 from micropython import const
-from button import Button, ButtonEvent
+from lib_common.button import Button, ButtonEvent
 import time
 
 BUTTON_PIN = const(15)  # GPIO pin the button is connected to
