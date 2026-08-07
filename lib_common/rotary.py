@@ -68,6 +68,12 @@ class Rotary:
     _TRANSITION_CCW = 0b1101
 
     def __init__(self, dt_pin: int, clk_pin: int, pull: int = Pin.PULL_UP) -> None:
+        """
+        Args:
+            dt_pin (int): DT pin number
+            clk_pin (int): CLK pin number
+            pull (int, optional): Can be Pin.PULL_UP, Pin.PULL_DOWN or None
+        """
         self._dt_pin = Pin(dt_pin, Pin.IN, pull)
         self._clk_pin = Pin(clk_pin, Pin.IN, pull)
 

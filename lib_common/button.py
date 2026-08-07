@@ -52,16 +52,16 @@ class Button(Pin):
     ):
         """
         Args:
-        - id: Pin identifier, as accepted by `machine.Pin`.
-        - pull: Pull resistor configuration (e.g. `Pin.PULL_UP`,
-          `Pin.PULL_DOWN`, or `None`). The button is always
-          initialised as an input (`Pin.IN`), active low
-          (pressed == 0).
-        - debounce_ms: Minimum time, in milliseconds, that must pass
-          between edges for them to be considered distinct (bounce
-          shorter than this is ignored).
-        - long_press_ms: Minimum hold duration, in milliseconds,
-          required for a press to be classified as a long press.
+            id: Pin identifier, as accepted by `machine.Pin`.
+            pull: Pull resistor configuration (e.g. `Pin.PULL_UP`,
+                `Pin.PULL_DOWN`, or `None`). The button is always
+                initialised as an input (`Pin.IN`), active low
+                (pressed == 0).
+            debounce_ms: Minimum time, in milliseconds, that must pass
+                between edges for them to be considered distinct (bounce
+                shorter than this is ignored).
+            long_press_ms: Minimum hold duration, in milliseconds,
+                required for a press to be classified as a long press.
         """
         super().__init__(id, Pin.IN, pull)
         self.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=self._on_irq)
