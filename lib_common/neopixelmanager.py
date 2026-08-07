@@ -53,13 +53,21 @@ Typical usage on a board with NeoPixels on GPIO 4:
 import time
 import math
 import neopixel
+from machine import Pin
 
 
 class NeoPixelManager(neopixel.NeoPixel):
     """NeoPixel strip with subset-fill, reset, and sine-wave pulsing."""
 
-    def __init__(self, pin, n: int, bpp: int = 3, timing: int = 1) -> None:
-        super().__init__(pin, n, bpp, timing)
+    def __init__(self, pin_id: int, n: int, bpp: int = 3, timing: int = 1) -> None:
+        """
+        Args:
+            pin_id (int): machine pin ID
+            n (int): number of LEDs in the array
+            bpp (int, optional): is 3 for RGB LEDs, and 4 for RGBW LEDs.
+            timing (int, optional): is 0 for 400KHz, and 1 for 800kHz LEDs (most are 800kHz)
+        """
+        super().__init__(Pin(pin_id), n, bpp, timing)
         self._pulses: list = []
         self._next_pulse_id: int = 0
 
@@ -67,14 +75,15 @@ class NeoPixelManager(neopixel.NeoPixel):
     # Basic pixel operations
     # ------------------------------------------------------------------
     def fill(self, color: tuple, start: int = 0, length: int = None) -> None:
-        """
-        Fill a contiguous subset of the strip with a single colour.
+        """Fill a contiguous subset of the strip with a single colour.
 
-        :param color: tuple matching the strip's bpp, e.g. (r, g, b)
-        :param start: index of the first pixel to fill (default 0)
-        :param length: number of pixels to fill; None defaults to
-            "rest of strip"
+        Args:
+            color (tuple): tuple matching the strip's bpp, e.g. (r, g, b)
+            start (int, optional): index of the first pixel to fill
+            length (int, optional): number of pixels to fill; None defaults to
+                "rest of strip"
         """
+
         n: int = len(self)
         if length is None:
             length = n - start
@@ -107,19 +116,21 @@ class NeoPixelManager(neopixel.NeoPixel):
         period_ms: int,
         phase_deg: float = 0,
     ) -> int:
-        """
-        Register a new sine-wave pulse on a subset of pixels.
+        """Register a new sine-wave pulse on a subset of pixels.
 
-        :param start: first pixel index in the subset
-        :param length: number of pixels in the subset
-        :param color1: colour at the trough of the sine wave (t = 0)
-        :param color2: colour at the peak of the sine wave (t = 1)
-        :param period_ms: full pulse period in milliseconds (one complete
-            color1 -> color2 -> color1 cycle)
-        :param phase_deg: optional phase offset in degrees, so multiple
-            pulses can be started out of sync
-        :return: auto-generated numeric id for this pulse, used
-            to remove it later via remove_pulse()
+        Args:
+            start (int): first pixel index in the subset
+            length (int): number of pixels in the subset
+            color1 (tuple): colour at the trough of the sine wave (t = 0)
+            color2 (tuple): colour at the peak of the sine wave (t = 1)
+            period_ms (int): full pulse period in milliseconds (one complete
+                color1 -> color2 -> color1 cycle)
+            phase_deg (float, optional): optional phase offset in degrees, so multiple
+                pulses can be started out of sync
+
+        Returns:
+            int: auto-generated numeric id for this pulse, used
+                to remove it later via remove_pulse()
         """
         pulse_id: int = self._next_pulse_id
         self._next_pulse_id += 1
@@ -140,12 +151,14 @@ class NeoPixelManager(neopixel.NeoPixel):
         return pulse_id
 
     def remove_pulse(self, pulse_id: int) -> bool:
-        """
-        Stop and forget a pulse by its id.
+        """Stop and forget a pulse by its id.
 
-        :param pulse_id: id returned from add_pulse()
-        :return: True if a matching pulse was found and removed,
-            False otherwise
+        Args:
+            pulse_id (int): id returned from add_pulse()
+
+        Returns:
+            bool: True if a matching pulse was found and removed,
+                False otherwise
         """
         for i, pulse in enumerate(self._pulses):
             if pulse["pulse_id"] == pulse_id:

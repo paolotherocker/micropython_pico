@@ -11,7 +11,7 @@ PIN_NUM = 15
 NUM_PIXELS = 16
 
 # Create the strip manager and start with everything off.
-np = NeoPixelManager(Pin(PIN_NUM), NUM_PIXELS)
+np = NeoPixelManager(PIN_NUM, NUM_PIXELS)
 np.reset()
 np.write()
 
