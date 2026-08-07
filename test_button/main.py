@@ -10,7 +10,7 @@ import time
 
 BUTTON_PIN = const(15)  # GPIO pin the button is connected to
 
-button = Button(Pin(BUTTON_PIN, Pin.IN, Pin.PULL_UP))
+button = Button(BUTTON_PIN, Pin.PULL_UP)
 led = Pin(25, Pin.OUT)
 
 button_event = ButtonEvent.NONE
