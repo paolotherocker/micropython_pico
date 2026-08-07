@@ -18,7 +18,7 @@ state = False
 prev_state = False
 
 while True:
-    button_event = button.consume_event()
+    button_event = button.consume()
     state = button.is_pressed()
 
     if state == True:

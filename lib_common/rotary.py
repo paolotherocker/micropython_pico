@@ -67,14 +67,9 @@ class Rotary:
     _TRANSITION_CW = 0b1110
     _TRANSITION_CCW = 0b1101
 
-    def __init__(self, dt_pin: Pin, clk_pin: Pin) -> None:
-        if not isinstance(dt_pin, Pin):
-            raise TypeError("dt_pin must be a machine.Pin instance")
-        if not isinstance(clk_pin, Pin):
-            raise TypeError("clk_pin must be a machine.Pin instance")
-
-        self._dt_pin = dt_pin
-        self._clk_pin = clk_pin
+    def __init__(self, dt_pin: int, clk_pin: int, pull: int = Pin.PULL_UP) -> None:
+        self._dt_pin = Pin(dt_pin, Pin.IN, pull)
+        self._clk_pin = Pin(clk_pin, Pin.IN, pull)
 
         self._last_status = self._read_status()
         self._last_event = RotaryEvent.NONE

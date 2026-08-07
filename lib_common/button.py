@@ -94,7 +94,7 @@ class Button(Pin):
         """
         return self.value() == 0
 
-    def consume_event(self) -> ButtonEvent:
+    def consume(self) -> ButtonEvent:
         """Check for and consume a pending button event.
 
         Should be polled periodically. If the button is pressed and quickly
