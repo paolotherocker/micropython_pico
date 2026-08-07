@@ -1,7 +1,4 @@
-"""
-neopixelmanager.py
-
-A MicroPython class that extends the built-in `neopixel.NeoPixel` driver with:
+"""A MicroPython class that extends the built-in `neopixel.NeoPixel` driver with:
 
 - fill(color, start, length) -> overridden to fill only a subset of pixels
 - reset()                    -> blacks out the whole strip AND stops all
