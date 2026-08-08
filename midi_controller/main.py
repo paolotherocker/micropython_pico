@@ -28,7 +28,6 @@ p_rotary_sw = 18
 # Extra button pins
 p_menu_buttons = [19, 20]
 
-
 controls = [Button(p, debounce_ms=100) for p in p_controls]
 encoder = Rotary(dt_pin=p_rotary_dt, clk_pin=p_rotary_clk)
 
@@ -37,6 +36,9 @@ for i in range(k_np_strip_num):
     np_array.add_subset(k_np_strip_len)
 
 patch_manager = PatchManager(controls=controls, np=np_array, encoder=encoder)
+patch_manager.c_active_1 = [(0, 200, 32), (0, 32, 200)]
+patch_manager.c_active_2 = [(0, 200, 96), (0, 96, 200)]
+patch_manager.c_passive = [(0, 100, 48), (0, 48, 100)]
 
 while True:
     patch_manager.update()

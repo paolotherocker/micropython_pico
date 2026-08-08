@@ -6,6 +6,10 @@ from lib_common.rotary import Rotary, RotaryEvent
 class PatchManager:
     """_summary_"""
 
+    c_active_1: list[tuple]
+    c_active_2: list[tuple]
+    c_passive: list[tuple]
+
     def __init__(self, controls: list[Button], np: NeoPixelManager, encoder: Rotary):
         self.controls = controls
         self.num_c = len(controls)
@@ -14,9 +18,6 @@ class PatchManager:
 
         self.active: int = -1
         self.mode: list[int] = [0, 0, 0, 0]  # 0 for primary 1 for secondary
-        self.c_active_1: list[tuple] = [(0, 200, 32), (0, 32, 200)]
-        self.c_active_2: list[tuple] = [(0, 200, 96), (0, 96, 200)]
-        self.c_passive: list[tuple] = [(0, 100, 48), (0, 48, 100)]
 
         self.preset: int = 0
         self.snap: int = 0
@@ -51,7 +52,7 @@ class PatchManager:
                     self.np.fill(color=self.c_passive[mode], id=i)
 
             self.snap = event_id * 2 + self.mode[event_id]
-            print(self.snap)
+            print("snap: " + str(self.snap))
 
         self.np.update()
         self.np.write()
