@@ -6,20 +6,23 @@ from lib_common.rotary import Rotary, RotaryEvent
 class PatchManager:
     """_summary_"""
 
-    c_active_1: list[tuple]
-    c_active_2: list[tuple]
-    c_passive: list[tuple]
-
     def __init__(self, controls: list[Button], np: NeoPixelManager, encoder: Rotary):
         self.controls = controls
         self.num_c = len(controls)
         self.np = np
         self.encoder = encoder
 
+        self.c_active_1: list[tuple]
+        self.c_active_2: list[tuple]
+        self.c_passive: list[tuple]
+        self.preset_up: int
+        self.preset_down: int
+        self.preset_num: int
+
         self.active: int = -1
         self.mode: list[int] = [0, 0, 0, 0]  # 0 for primary 1 for secondary
 
-        self.preset: int = 0
+        self.preset: int = 1
         self.snap: int = 0
 
     def update(self):
@@ -51,8 +54,21 @@ class PatchManager:
                 else:
                     self.np.fill(color=self.c_passive[mode], id=i)
 
-            self.snap = event_id * 2 + self.mode[event_id]
+            self.snap = event_id * 2 + self.mode[event_id] + 1
             print("snap: " + str(self.snap))
+        if event == ButtonEvent.LONG_PRESS:
+            if event_id == self.preset_up:
+                self.preset = self.preset + 1
+            elif event_id == self.preset_down:
+                self.preset = self.preset - 1
+
+            # Wrap around 1 and the maximum
+            if self.preset < 1:
+                self.preset = self.preset_num
+            elif self.preset > self.preset_num:
+                self.preset = 1
+
+            print("preset: " + str(self.preset))
 
         self.np.update()
         self.np.write()

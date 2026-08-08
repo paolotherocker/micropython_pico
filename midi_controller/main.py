@@ -39,6 +39,9 @@ patch_manager = PatchManager(controls=controls, np=np_array, encoder=encoder)
 patch_manager.c_active_1 = [(0, 200, 32), (0, 32, 200)]
 patch_manager.c_active_2 = [(0, 200, 96), (0, 96, 200)]
 patch_manager.c_passive = [(0, 100, 48), (0, 48, 100)]
+patch_manager.preset_up = 2
+patch_manager.preset_down = 3
+patch_manager.preset_num = 16
 
 while True:
     patch_manager.update()
