@@ -9,14 +9,16 @@ from micropython import const
 from lib_common.button import Button, ButtonEvent
 from lib_common.rotary import Rotary, RotaryEvent
 from lib_common.neopixelmanager import NeoPixelManager
+import time
+from patch_manager import PatchManager
 
-# SSD1306 I2C pins
+# SSD1306
 p_disp_sda = 2
 p_disp_scl = 3
 # Neopixel pins
-p_np = [6, 7, 8, 9]
-# Number of leds per strip
-k_np_num = 8
+p_np = 15
+k_np_strip_len = 8  # Number of leds per strip
+k_np_strip_num = 4  # Number of strips
 # Control pins
 p_controls = [10, 11, 12, 13]
 # Encoder pins
@@ -25,3 +27,17 @@ p_rotary_dt = 17
 p_rotary_sw = 18
 # Extra button pins
 p_menu_buttons = [19, 20]
+
+
+controls = [Button(p, debounce_ms=100) for p in p_controls]
+encoder = Rotary(dt_pin=p_rotary_dt, clk_pin=p_rotary_clk)
+
+np_array = NeoPixelManager(pin_id=p_np, n=k_np_strip_len * k_np_strip_num)
+for i in range(k_np_strip_num):
+    np_array.add_subset(k_np_strip_len)
+
+patch_manager = PatchManager(controls=controls, np=np_array, encoder=encoder)
+
+while True:
+    patch_manager.update()
+    time.sleep_ms(5)
