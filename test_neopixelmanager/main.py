@@ -12,25 +12,25 @@ NUM_PIXELS = 16
 
 # Create the strip manager and start with everything off.
 np = NeoPixelManager(PIN_NUM, NUM_PIXELS)
-np.reset()
+np.clear()
 np.write()
+
+np.add_subset(8)
+np.add_subset(8)
 
 # Trigger a pulse across all 16 pixels, breathing between red and off,
 # once every 2 seconds.
 np.add_pulse(
-    start=0,
-    length=8,
+    id=0,
     color1=(0, 32, 200),
     color2=(0, 64, 200),
     period_ms=2000,
 )
 np.add_pulse(
-    start=8,
-    length=8,
+    id=1,
     color1=(0, 200, 32),
     color2=(0, 200, 96),
     period_ms=2000,
-    phase_deg=0,
 )
 
 print("Pulsing... press Ctrl+C to stop")
