@@ -1,16 +1,26 @@
 from lib_common.button import Button, ButtonEvent
 from lib_common.neopixelmanager import NeoPixelManager
 from lib_common.rotary import Rotary, RotaryEvent
+from tm1637 import TM1637
 
 
 class PatchManager:
-    """_summary_"""
+    """Manages the control buttons, LEDs and the rotary encoder to generate MIDI messages"""
 
-    def __init__(self, controls: list[Button], np: NeoPixelManager, encoder: Rotary):
+    _PATCH_MAP = [" ", "A", "B", "C", "D", "E", "F", "G", "H"]
+
+    def __init__(
+        self,
+        controls: list[Button],
+        np: NeoPixelManager,
+        encoder: Rotary,
+        display: TM1637,
+    ):
         self.controls = controls
         self.num_c = len(controls)
         self.np = np
         self.encoder = encoder
+        self.display = display
 
         self.c_active_1: list[tuple]
         self.c_active_2: list[tuple]
@@ -24,6 +34,9 @@ class PatchManager:
 
         self.preset: int = 1
         self.snap: int = 0
+
+        self.display.brightness(3)
+        self.display.show("")
 
     def update(self):
         event_id = -1
@@ -55,8 +68,8 @@ class PatchManager:
                     self.np.fill(color=self.c_passive[mode], id=i)
 
             self.snap = event_id * 2 + self.mode[event_id] + 1
-            print("snap: " + str(self.snap))
-        if event == ButtonEvent.LONG_PRESS:
+
+        elif event == ButtonEvent.LONG_PRESS:
             if event_id == self.preset_up:
                 self.preset = self.preset + 1
             elif event_id == self.preset_down:
@@ -68,7 +81,9 @@ class PatchManager:
             elif self.preset > self.preset_num:
                 self.preset = 1
 
-            print("preset: " + str(self.preset))
+        if event != ButtonEvent.NONE:
+            buffer = " " + self._PATCH_MAP[self.preset] + " " + str(self.snap)
+            self.display.show(buffer)
 
         self.np.update()
         self.np.write()
