@@ -4,7 +4,7 @@ mpremote fs cp -r lib_common :/lib
 """
 
 from machine import Pin
-from lib_common.neopixelmanager import NeoPixelManager
+from lib_common.neopixelmanager import NeoPixelManager, Pulse
 import time
 
 PIN_NUM = 15
@@ -20,17 +20,22 @@ np.add_subset(8)
 
 # Trigger a pulse across all 16 pixels, breathing between red and off,
 # once every 2 seconds.
-np.add_pulse(
+np.set_pattern(
+    Pulse(
+        color1=(0, 32, 200),
+        color2=(0, 64, 200),
+        period_ms=2000,
+    ),
     id=0,
-    color1=(0, 32, 200),
-    color2=(0, 64, 200),
-    period_ms=2000,
 )
-np.add_pulse(
+
+np.set_pattern(
+    Pulse(
+        color1=(0, 200, 32),
+        color2=(0, 200, 96),
+        period_ms=2000,
+    ),
     id=1,
-    color1=(0, 200, 32),
-    color2=(0, 200, 96),
-    period_ms=2000,
 )
 
 print("Pulsing... press Ctrl+C to stop")

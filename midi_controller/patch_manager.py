@@ -1,5 +1,5 @@
 from lib_common.button import Button, ButtonEvent
-from lib_common.neopixelmanager import NeoPixelManager
+from lib_common.neopixelmanager import NeoPixelManager, Pulse, Solid
 from lib_common.rotary import Rotary, RotaryEvent
 from tm1637 import TM1637
 
@@ -58,14 +58,16 @@ class PatchManager:
             for i in range(self.num_c):
                 mode = self.mode[i]  # primary or secondary
                 if i == event_id:
-                    self.np.add_pulse(
-                        color1=self.c_active_1[mode],
-                        color2=self.c_active_2[mode],
-                        period_ms=2000,
+                    self.np.set_pattern(
+                        Pulse(
+                            color1=self.c_active_1[mode],
+                            color2=self.c_active_2[mode],
+                            period_ms=2000,
+                        ),
                         id=i,
                     )
                 else:
-                    self.np.fill(color=self.c_passive[mode], id=i)
+                    self.np.set_pattern(Solid(color=self.c_passive[mode]), id=i)
 
             self.snap = event_id * 2 + self.mode[event_id] + 1
 
