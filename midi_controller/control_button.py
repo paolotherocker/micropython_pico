@@ -18,8 +18,13 @@ class LEDMode:
 
 
 class ColorMap:
+
     def __init__(
-        self, active_primary, active_secondary, passive_primary, passive_secondary
+        self,
+        active_primary: tuple = (0, 0, 0),
+        active_secondary: tuple = (0, 0, 0),
+        passive_primary: tuple = (0, 0, 0),
+        passive_secondary: tuple = (0, 0, 0),
     ):
         self.active_primary = active_primary
         self.active_secondary = active_secondary
@@ -28,11 +33,6 @@ class ColorMap:
 
 
 class ControlButton(Button):
-    SNAP_PULSE_1 = Pulse(color1=(0, 200, 32), color2=(0, 200, 96), period_ms=5000)
-    SNAP_PULSE_2 = Pulse(color1=(0, 32, 200), color2=(0, 96, 200), period_ms=5000)
-    SNAP_SOLID_1 = Solid(color=(0, 50, 8))
-    SNAP_SOLID_2 = Solid(color=(0, 8, 50))
-
     def __init__(
         self,
         id: int,
@@ -42,9 +42,7 @@ class ControlButton(Button):
         led_mode: LEDMode,
         debounce_ms: int = 100,
         long_press_ms: int = 600,
-        color_map: ColorMap = ColorMap(
-            SNAP_PULSE_1, SNAP_PULSE_2, SNAP_SOLID_1, SNAP_SOLID_2
-        ),
+        color_map: ColorMap = ColorMap(),
     ):
         super().__init__(pin, debounce_ms=debounce_ms, long_press_ms=long_press_ms)
         self.id = id
