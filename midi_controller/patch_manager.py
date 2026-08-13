@@ -1,6 +1,6 @@
-from lib_common.button import Button, ButtonEvent
 from lib_common.neopixelmanager import NeoPixelManager, Pulse, Solid
 from lib_common.rotary import Rotary, RotaryEvent
+from control_button import ControlButton, ControlAction
 from tm1637 import TM1637
 
 
@@ -11,26 +11,17 @@ class PatchManager:
 
     def __init__(
         self,
-        controls: list[Button],
+        control_buttons: list[ControlButton],
         np: NeoPixelManager,
         encoder: Rotary,
         display: TM1637,
+        preset_num: int = 8,
     ):
-        self.controls = controls
-        self.num_c = len(controls)
+        self.control_buttons = control_buttons
         self.np = np
         self.encoder = encoder
         self.display = display
-
-        self.c_active_1: list[tuple]
-        self.c_active_2: list[tuple]
-        self.c_passive: list[tuple]
-        self.preset_up: int
-        self.preset_down: int
-        self.preset_num: int
-
-        self.active: int = -1
-        self.mode: list[int] = [0, 0, 0, 0]  # 0 for primary 1 for secondary
+        self.preset_num = preset_num
 
         self.preset: int = 1
         self.snap: int = 0
@@ -38,54 +29,48 @@ class PatchManager:
         self.display.brightness(3)
         self.display.show("")
 
-    def update(self):
-        event_id = -1
-        event = ButtonEvent.NONE
+    def preset_update(self, delta: int):
+        self.preset += delta
 
-        for ctrl in self.controls:
-            event_id = event_id + 1
-            event = ctrl.consume()
-            if event != ButtonEvent.NONE:
+        # Wrap around 1 and the maximum
+        if self.preset < 1:
+            self.preset = self.preset_num
+        elif self.preset > self.preset_num:
+            self.preset = 1
+
+    def refresh_display(self):
+        buffer = " " + self._PATCH_MAP[self.preset] + " " + str(self.snap)
+        self.display.show(buffer)
+
+    def update(self):
+        action_id = -1
+        action = ControlAction.NONE
+
+        for ctrl in self.control_buttons:
+            action_id = action_id + 1
+            action = ctrl.update()
+
+            if action in (
+                ControlAction.SNAP_1_2,
+                ControlAction.SNAP_3_4,
+                ControlAction.SNAP_5_6,
+                ControlAction.SNAP_7_8,
+            ):
+                self.np.set_pattern(pattern=ctrl.pattern(), id=ctrl.id)
+                self.snap = ctrl.snap_value()
+
+                for c_other in self.control_buttons:
+                    if c_other.id != action_id:
+                        c_other.set_passive()
+                        self.np.set_pattern(pattern=c_other.pattern(), id=c_other.id)
+
+            elif action == ControlAction.PRESET_UP:
+                self.preset_update(1)
+            elif action == ControlAction.PRESET_DOWN:
+                self.preset_update(-1)
+
+            if action != ControlAction.NONE:
+                self.refresh_display()
                 break
 
-        if event == ButtonEvent.SHORT_PRESS:
-            self.np.clear()
-
-            if event_id == self.active:
-                self.mode[event_id] = 1 - self.mode[event_id]
-            self.active = event_id
-
-            for i in range(self.num_c):
-                mode = self.mode[i]  # primary or secondary
-                if i == event_id:
-                    self.np.set_pattern(
-                        Pulse(
-                            color1=self.c_active_1[mode],
-                            color2=self.c_active_2[mode],
-                            period_ms=2000,
-                        ),
-                        id=i,
-                    )
-                else:
-                    self.np.set_pattern(Solid(color=self.c_passive[mode]), id=i)
-
-            self.snap = event_id * 2 + self.mode[event_id] + 1
-
-        elif event == ButtonEvent.LONG_PRESS:
-            if event_id == self.preset_up:
-                self.preset = self.preset + 1
-            elif event_id == self.preset_down:
-                self.preset = self.preset - 1
-
-            # Wrap around 1 and the maximum
-            if self.preset < 1:
-                self.preset = self.preset_num
-            elif self.preset > self.preset_num:
-                self.preset = 1
-
-        if event != ButtonEvent.NONE:
-            buffer = " " + self._PATCH_MAP[self.preset] + " " + str(self.snap)
-            self.display.show(buffer)
-
-        self.np.update()
-        self.np.write()
+        self.np.poll()

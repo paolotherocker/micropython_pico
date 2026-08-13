@@ -9,10 +9,11 @@ from machine import Pin
 from micropython import const
 from lib_common.button import Button, ButtonEvent
 from lib_common.rotary import Rotary, RotaryEvent
-from lib_common.neopixelmanager import NeoPixelManager
+from lib_common.neopixelmanager import NeoPixelManager, Pulse, Solid, Off
 import time
 from tm1637 import TM1637
 from patch_manager import PatchManager
+from control_button import ControlButton, ControlAction, LEDMode
 
 # Display
 p_disp_dio = 2
@@ -30,7 +31,26 @@ p_rotary_sw = 18
 # Extra button pins
 p_menu_buttons = [19, 20]
 
-controls = [Button(p, debounce_ms=100) for p in p_controls]
+controls_mapping = [
+    [ControlAction.SNAP_1_2, ControlAction.NONE, LEDMode.SNAP],
+    [ControlAction.SNAP_3_4, ControlAction.NONE, LEDMode.SNAP],
+    [ControlAction.SNAP_5_6, ControlAction.PRESET_UP, LEDMode.SNAP],
+    [ControlAction.SNAP_7_8, ControlAction.PRESET_DOWN, LEDMode.SNAP],
+]
+
+controls = []
+for i in range(4):
+    controls.append(
+        ControlButton(
+            id=i,
+            pin=p_controls[i],
+            action_short=controls_mapping[i][0],
+            action_long=controls_mapping[i][1],
+            led_mode=controls_mapping[i][2],
+        )
+    )
+
+
 encoder = Rotary(dt_pin=p_rotary_dt, clk_pin=p_rotary_clk)
 tm = TM1637(clk=Pin(p_disp_clk), dio=Pin(p_disp_dio))
 
@@ -39,14 +59,8 @@ for i in range(k_np_strip_num):
     np_array.add_subset(k_np_strip_len)
 
 patch_manager = PatchManager(
-    controls=controls, np=np_array, encoder=encoder, display=tm
+    control_buttons=controls, np=np_array, encoder=encoder, display=tm
 )
-patch_manager.c_active_1 = [(0, 200, 32), (0, 32, 200)]
-patch_manager.c_active_2 = [(0, 200, 96), (0, 96, 200)]
-patch_manager.c_passive = [(0, 100, 48), (0, 48, 100)]
-patch_manager.preset_up = 2
-patch_manager.preset_down = 3
-patch_manager.preset_num = 16
 
 while True:
     patch_manager.update()
