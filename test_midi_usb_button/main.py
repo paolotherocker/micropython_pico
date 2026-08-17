@@ -8,7 +8,7 @@ import machine
 import usb.device
 from usb.device.midi import MIDIInterface
 
-BUTTON_PIN = 15
+BUTTON_PIN = 13
 CHANNEL = 0
 CONTROLLER = 24
 CC_VALUE_ON = 127
