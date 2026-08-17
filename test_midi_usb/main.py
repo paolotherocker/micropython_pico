@@ -1,8 +1,14 @@
+"""
+Install dependencies:
+mpremote mip install usb-device-midi
+"""
+
 import time
 import machine
 import sys
 
 led = machine.Pin("LED", machine.Pin.OUT)
+
 
 def blink(n):
     for _ in range(n):
@@ -10,6 +16,7 @@ def blink(n):
         time.sleep_ms(100)
         led.off()
         time.sleep_ms(100)
+
 
 blink(1)  # Reached start of script
 
@@ -20,7 +27,9 @@ try:
     midi = MIDIInterface()
     blink(2)  # MIDIInterface object created
 
-    usb.device.get().init(midi, builtin_driver=True, product_str="MicroPython CC Button")
+    usb.device.get().init(
+        midi, builtin_driver=True, product_str="MicroPython CC Button"
+    )
     blink(3)  # init() returned, USB re-enumeration triggered
 
     while not midi.is_open():

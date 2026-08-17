@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote mip install usb-device-midi
+"""
+
 from machine import Pin, Timer, UART
 
 k_uart_id = int(0)

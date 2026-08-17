@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote mip install github:mcauser/micropython-tm1637
+"""
+
 import tm1637
 from machine import Pin, Timer, PWM, UART
 import math

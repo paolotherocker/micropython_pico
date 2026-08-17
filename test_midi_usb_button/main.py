@@ -1,3 +1,8 @@
+"""
+Install dependencies:
+mpremote mip install usb-device-midi
+"""
+
 import time
 import machine
 import usb.device
@@ -34,7 +39,10 @@ while midi.is_open():
     current_state = button.value()
     now = time.ticks_ms()
 
-    if current_state != last_state and time.ticks_diff(now, last_change_time) > DEBOUNCE_MS:
+    if (
+        current_state != last_state
+        and time.ticks_diff(now, last_change_time) > DEBOUNCE_MS
+    ):
         last_change_time = now
         last_state = current_state
 
@@ -45,6 +53,5 @@ while midi.is_open():
                 cc_value = cc_value + 1
             else:
                 cc_value = 1
-
 
     time.sleep_ms(5)
