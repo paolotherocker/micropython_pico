@@ -4,7 +4,7 @@ mpremote fs cp -r lib_common :/lib
 """
 
 from machine import Pin
-from lib_common.neopixelmanager import NeoPixelManager, Pulse
+from utils.neopixelmanager import NeoPixelManager, Pulse
 import time
 
 PIN_NUM = 15

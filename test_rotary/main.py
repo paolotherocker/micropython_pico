@@ -1,5 +1,5 @@
 import utime as time
-from lib_common.rotary import Rotary, RotaryEvent
+from utils.rotary import Rotary, RotaryEvent
 from machine import Pin
 
 rotary = Rotary(dt_pin=2, clk_pin=3)
