@@ -7,6 +7,7 @@ import time
 import machine
 import usb.device
 from usb.device.midi import MIDIInterface
+from utils.midimessages import Message, ControlChange
 
 BUTTON_PIN = 13
 CHANNEL = 0
@@ -35,6 +36,9 @@ last_change_time = time.ticks_ms()
 
 cc_value = 1
 
+def send_message(msg:Message):
+    midi.send_event(msg.cin(), *msg.to_bytes())
+
 while midi.is_open():
     current_state = button.value()
     now = time.ticks_ms()
@@ -47,7 +51,7 @@ while midi.is_open():
         last_state = current_state
 
         if current_state == 1:
-            midi.control_change(CHANNEL, CONTROLLER, cc_value)
+            send_message(ControlChange(channel=CHANNEL, controller=CONTROLLER, value=cc_value))
             print(f"CC {CONTROLLER} -> {cc_value}")
             if cc_value < 8:
                 cc_value = cc_value + 1
