@@ -7,13 +7,13 @@ from machine import Pin, Timer
 import json
 
 k_led_pin = int(25)
-k_btn_pin = int(16)
+k_btn_pin = int(11)
 k_file_name = "data.json"
 
 
 class Test_tm1637:
     def __init__(self) -> None:
-        self.disp = tm1637.TM1637(clk=Pin(26), dio=Pin(27))
+        self.disp = tm1637.TM1637(clk=Pin(21), dio=Pin(20))
         self.led = Pin(k_led_pin, Pin.OUT)
         self.value = 0
         self.btn = Pin(k_btn_pin, Pin.IN, Pin.PULL_UP)
