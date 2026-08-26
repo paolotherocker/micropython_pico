@@ -5,9 +5,7 @@ mpremote mip install usb-device-midi
 
 import time
 import machine
-import usb.device
-from usb.device.midi import MIDIInterface
-from utils.midimessages import Message, ControlChange
+from utils.midi import ControlChange, MidiUsb
 
 BUTTON_PIN = 11
 CHANNEL = 0
@@ -18,9 +16,7 @@ DEBOUNCE_MS = 20
 
 button = machine.Pin(BUTTON_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
 led = machine.Pin(25, machine.Pin.OUT)
-
-midi = MIDIInterface()
-usb.device.get().init(midi, builtin_driver=True, product_str="MicroPython MIDI")
+midi = MidiUsb(product_str="Pico MIDI")
 
 print("Waiting for USB host to configure MIDI interface...")
 while not midi.is_open():
@@ -36,11 +32,6 @@ last_change_time = time.ticks_ms()
 
 cc_value = 1
 
-
-def send_message(msg: Message):
-    midi.send_event(msg.cin(), *msg.to_bytes())
-
-
 while midi.is_open():
     current_state = button.value()
     now = time.ticks_ms()
@@ -53,7 +44,7 @@ while midi.is_open():
         last_state = current_state
 
         if current_state == 1:
-            send_message(
+            midi.send_message(
                 ControlChange(channel=CHANNEL, controller=CONTROLLER, value=cc_value)
             )
             print(f"CC {CONTROLLER} -> {cc_value}")
