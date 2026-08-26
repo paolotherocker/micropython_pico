@@ -4,7 +4,7 @@ mpremote fs cp -r lib_common :/lib
 """
 
 from machine import Pin
-from utils.neopixelmanager import NeoPixelManager, Pulse
+from utils.neopixelmanager import NeoPixelManager, Pulse, Wave
 import time
 
 PIN_NUM = 22
@@ -40,7 +40,7 @@ np.set_pattern(
     id=1,
 )
 np.set_pattern(
-    Pulse(
+    Wave(
         color1=(0, 0, 30),
         color2=(0, 0, 50),
         period_ms=2000,
@@ -49,10 +49,11 @@ np.set_pattern(
 )
 
 np.set_pattern(
-    Pulse(
+    Wave(
         color1=(0, 30, 0),
         color2=(0, 100, 0),
         period_ms=2000,
+        phase_deg=180,
     ),
     id=3,
 )
