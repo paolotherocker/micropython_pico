@@ -4,28 +4,18 @@ mpremote mip install github:mcauser/micropython-tm1637
 
 import tm1637
 from machine import Pin, Timer
-import json
 
 k_led_pin = int(25)
-k_btn_pin = int(11)
-k_file_name = "data.json"
+k_btn_pin = int(6)
 
 
 class Test_tm1637:
     def __init__(self) -> None:
-        self.disp = tm1637.TM1637(clk=Pin(21), dio=Pin(20))
+        self.disp = tm1637.TM1637(clk=Pin(19), dio=Pin(18))
         self.led = Pin(k_led_pin, Pin.OUT)
         self.value = 0
         self.btn = Pin(k_btn_pin, Pin.IN, Pin.PULL_UP)
         self.button_timer = Timer()
-
-        # Try to read from file first
-        data = dict()
-        try:
-            data = json.load(open(k_file_name))
-        except:
-            pass
-        self.value = data.get("value", 0)
 
         self.disp.brightness(3)
         self.btn.irq(handler=self.button_callback)
@@ -46,11 +36,6 @@ class Test_tm1637:
                 self.led.on()
             else:
                 self.led.off()
-
-            data = dict()
-            data["value"] = self.value
-            file = open(k_file_name, "w")
-            json.dump(data, file)
 
         # Delay the action for a few milliseconds to reject some noise
         self.button_timer.init(
